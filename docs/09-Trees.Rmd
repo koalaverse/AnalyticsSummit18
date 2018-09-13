@@ -135,7 +135,7 @@ options(servr.daemon = TRUE)
 # Set global knitr chunk options
 knitr::opts_chunk$set(
   fig.align = "center",
-  fig.path = "figures/", 
+  fig.path = "Figures/09-Figures/", 
   cache = TRUE,
   dev = "svg",
   error = FALSE,
@@ -704,6 +704,7 @@ circle <- as.data.frame(mlbench::mlbench.circle(
 names(circle) <- c("x1", "x2", "y")  # rename columns
 
 # Plot decision boundary: CART
+dark2 <- RColorBrewer::brewer.pal(8, "Dark2")
 plot(
   formula = x2 ~ x1, 
   data = circle, 
@@ -1905,10 +1906,11 @@ ames_xgb <- xgboost(
 
 ```{r xgboost-vip, fig.width=12, fig.height=4}
 # Variable importance plots
-p1 <- vip(ames_xgb, feature_names = colnames(X), type = "Gain")
-p2 <- vip(ames_xgb, feature_names = colnames(X), type = "Cover")
-p3 <- vip(ames_xgb, feature_names = colnames(X), type = "Frequency")
-grid.arrange(p1, p2, p3, ncol = 3)
+vip(ames_xgb, feature_names = colnames(X))
+# p1 <- vip(ames_xgb, feature_names = colnames(X), type = "Gain")
+# p2 <- vip(ames_xgb, feature_names = colnames(X), type = "Cover")
+# p3 <- vip(ames_xgb, feature_names = colnames(X), type = "Frequency")
+# grid.arrange(p1, p2, p3, ncol = 3)
 ```
 
 
@@ -1918,7 +1920,7 @@ grid.arrange(p1, p2, p3, ncol = 3)
 
 ```{r xgboost-vip-2, out.width="50%"}
 # By default, `vip()` plots the top 10 features
-vip(ames_xgb, feature_names = colnames(X), type = "Gain", 
+vip(ames_xgb, feature_names = colnames(X), #type = "Gain", 
     num_features = nrow(X), bar = FALSE)
 ```
 
@@ -1945,7 +1947,7 @@ grid.arrange(p4, p5, p6, ncol = 3)
 
 ```{r xgboost-pdp-vi, echo=FALSE, fig.width=9, fig.height=6}
 # Partial dependence plots for the top/bottom three features
-ames_vi <- vi(ames_xgb, feature_names = colnames(X), type = "Gain")
+ames_vi <- vi(ames_xgb, feature_names = colnames(X))#, type = "Gain")
 feats <- c(head(ames_vi, n = 3)$Variable, tail(ames_vi, n = 3)$Variable)
 pds <- lapply(feats, FUN = function(x) {
   pd <- cbind(x, partial(ames_xgb, pred.var = x, train = X))

@@ -257,14 +257,14 @@ accuracy(
 .pull-left[
 
 Decision stump (test error = 1.53%):
-&lt;img src="figures/mushroom-tree-diagram-1-1.svg" width="100%" style="display: block; margin: auto;" /&gt;
+&lt;img src="Figures/09-Figures/mushroom-tree-diagram-1-1.svg" width="100%" style="display: block; margin: auto;" /&gt;
 
 ]
 
 .pull-right[
 
 Optimal tree (test error = 0%):
-&lt;img src="figures/mushroom-tree-diagram-2-1.svg" width="100%" style="display: block; margin: auto;" /&gt;
+&lt;img src="Figures/09-Figures/mushroom-tree-diagram-2-1.svg" width="100%" style="display: block; margin: auto;" /&gt;
 
 ]
 
@@ -337,7 +337,7 @@ legend("bottomright", legend = c("Train", "Test"), bty = "n",
 ---
 class: center, middle
 
-&lt;img src="figures/mushroom-cart-roc-02-1.svg" width="80%" style="display: block; margin: auto;" /&gt;
+&lt;img src="Figures/09-Figures/mushroom-cart-roc-02-1.svg" width="80%" style="display: block; margin: auto;" /&gt;
 
 
 ---
@@ -400,7 +400,7 @@ pred &lt;- predict(spam_tree, newdata = xtst, type = "class")
 
 .scrollable[
 
-&lt;img src="figures/spam-tree-diagram-1.svg" width="70%" style="display: block; margin: auto;" /&gt;
+&lt;img src="Figures/09-Figures/spam-tree-diagram-1.svg" width="70%" style="display: block; margin: auto;" /&gt;
 
 ]
 
@@ -444,7 +444,7 @@ pred &lt;- predict(spam_tree, newdata = xtst, type = "class")
 *vip::vip(spam_tree, num_features = 10)
 ```
 
-&lt;img src="figures/spam-vip-1.svg" width="100%" style="display: block; margin: auto;" /&gt;
+&lt;img src="Figures/09-Figures/spam-vip-1.svg" width="100%" style="display: block; margin: auto;" /&gt;
 
 ]
 
@@ -571,28 +571,28 @@ Image credit: [Wikimedia Commons](https://commons.wikimedia.org/wiki/Forest#/med
 
 ## Bagging trees
 
-&lt;img src="figures/bagging-1-1.svg" width="65%" style="display: block; margin: auto;" /&gt;
+&lt;img src="Figures/09-Figures/bagging-1-1.svg" width="65%" style="display: block; margin: auto;" /&gt;
 
 
 ---
 
 ## Trees are step functions
 
-&lt;img src="figures/bagging-2-1.svg" width="65%" style="display: block; margin: auto;" /&gt;
+&lt;img src="Figures/09-Figures/bagging-2-1.svg" width="65%" style="display: block; margin: auto;" /&gt;
 
 
 ---
 
 ## Trees are noisy
 
-&lt;img src="figures/bagging-3-1.svg" width="65%" style="display: block; margin: auto;" /&gt;
+&lt;img src="Figures/09-Figures/bagging-3-1.svg" width="65%" style="display: block; margin: auto;" /&gt;
 
 
 ---
 
 ## Bagging reduces variance
 
-&lt;img src="figures/bagging-4-1.svg" width="65%" style="display: block; margin: auto;" /&gt;
+&lt;img src="Figures/09-Figures/bagging-4-1.svg" width="65%" style="display: block; margin: auto;" /&gt;
 
 
 ---
@@ -600,13 +600,13 @@ class: center, middle
 
 .large[Remember this data set?]
 
-&lt;img src="figures/circle-01-1.svg" width="70%" style="display: block; margin: auto;" /&gt;
+&lt;img src="Figures/09-Figures/circle-01-1.svg" width="70%" style="display: block; margin: auto;" /&gt;
 
 
 ---
 class: center, middle
 
-&lt;img src="figures/circle-02-1.svg" width="100%" style="display: block; margin: auto;" /&gt;
+&lt;img src="Figures/09-Figures/circle-02-1.svg" width="100%" style="display: block; margin: auto;" /&gt;
 
 
 ---
@@ -637,7 +637,7 @@ spam_bag &lt;- randomForest(
 
 .pull-right[
 
-&lt;img src="figures/unnamed-chunk-3-1.svg" width="400" style="display: block; margin: auto;" /&gt;
+&lt;img src="Figures/09-Figures/unnamed-chunk-3-1.svg" width="400" style="display: block; margin: auto;" /&gt;
 
 ]
 
@@ -772,7 +772,7 @@ spam_rf &lt;- randomForest(
 
 .pull-right[
 
-&lt;img src="figures/unnamed-chunk-5-1.svg" width="400" style="display: block; margin: auto;" /&gt;
+&lt;img src="Figures/09-Figures/unnamed-chunk-5-1.svg" width="400" style="display: block; margin: auto;" /&gt;
 
 ]
 
@@ -851,7 +851,7 @@ mean(x %in% sample(x, replace = TRUE))  # non-OOB proportion
 
 ## Predicting email spam
 
-&lt;img src="figures/unnamed-chunk-6-1.svg" width="60%" style="display: block; margin: auto;" /&gt;
+&lt;img src="Figures/09-Figures/unnamed-chunk-6-1.svg" width="60%" style="display: block; margin: auto;" /&gt;
 
 
 ---
@@ -923,7 +923,7 @@ system.time(
 
 ```
 ##    user  system elapsed 
-##   7.408   0.164   7.715
+##   7.383   0.133   7.595
 ```
 
 ```
@@ -950,7 +950,7 @@ system.time(
 
 ```
 ##    user  system elapsed 
-##   6.224   0.158   1.997
+##   6.638   0.212   1.999
 ```
 
 ```
@@ -1000,7 +1000,7 @@ par(mfrow = c(1, 2))  # side-by-side plots
 *varImpPlot(boston_rf)  # randomForest::varImpPlot()
 ```
 
-&lt;img src="figures/boston-rf-varImpPlot-1.svg" width="100%" style="display: block; margin: auto;" /&gt;
+&lt;img src="Figures/09-Figures/boston-rf-varImpPlot-1.svg" width="100%" style="display: block; margin: auto;" /&gt;
 
 
 ---
@@ -1017,7 +1017,7 @@ p3 &lt;- vip(boston_ranger) + ggtitle("ranger")
 *grid.arrange(p1, p2, p3, ncol = 3)
 ```
 
-&lt;img src="figures/boston-rf-vip-1.svg" width="100%" style="display: block; margin: auto;" /&gt;
+&lt;img src="Figures/09-Figures/boston-rf-vip-1.svg" width="100%" style="display: block; margin: auto;" /&gt;
 
 
 ---
@@ -1096,7 +1096,7 @@ p2 &lt;- partial(boston_ranger, pred.var = "rm", plot = TRUE)
 grid.arrange(p1, p2, p3, ncol = 3)
 ```
 
-&lt;img src="figures/boston-rf-pdps-1.svg" width="100%" style="display: block; margin: auto;" /&gt;
+&lt;img src="Figures/09-Figures/boston-rf-pdps-1.svg" width="100%" style="display: block; margin: auto;" /&gt;
 
 
 ---
@@ -1139,7 +1139,7 @@ p3 &lt;- boston_ranger %&gt;%  # %&gt;% is automatically imported!
 grid.arrange(p1, p2, p3, ncol = 3)
 ```
 
-&lt;img src="figures/unnamed-chunk-12-1.svg" width="100%" style="display: block; margin: auto;" /&gt;
+&lt;img src="Figures/09-Figures/unnamed-chunk-12-1.svg" width="100%" style="display: block; margin: auto;" /&gt;
 
 
 ---
@@ -1151,7 +1151,7 @@ grid.arrange(p1, p2, p3, ncol = 3)
 
 ---
 
-&lt;img src="figures/mushroom-tree-diagram-3-1.svg" width="80%" style="display: block; margin: auto;" /&gt;
+&lt;img src="Figures/09-Figures/mushroom-tree-diagram-3-1.svg" width="80%" style="display: block; margin: auto;" /&gt;
 
 
 ---
@@ -1213,7 +1213,7 @@ banknote_rf$confusion
 heatmap(1 - banknote_rf$proximity, col = viridis::plasma(256))
 ```
 
-&lt;img src="figures/heatmap-1.svg" width="50%" style="display: block; margin: auto;" /&gt;
+&lt;img src="Figures/09-Figures/heatmap-1.svg" width="50%" style="display: block; margin: auto;" /&gt;
 
 
 ---
@@ -1244,7 +1244,7 @@ ggplot(outlyingness, aes(x = obs, y = out)) +
 
 .pull-right[
 
-&lt;img src="figures/outlier-plot-1.svg" width="90%" style="display: block; margin: auto;" /&gt;
+&lt;img src="Figures/09-Figures/outlier-plot-1.svg" width="90%" style="display: block; margin: auto;" /&gt;
 
 ]
 
@@ -1259,7 +1259,7 @@ ggplot(outlyingness, aes(x = obs, y = out)) +
 MDSplot(banknote_rf, fac = as.factor(banknote$Y), k = 2, cex = 1.5)
 ```
 
-&lt;img src="figures/MDS-1.svg" width="50%" style="display: block; margin: auto;" /&gt;
+&lt;img src="Figures/09-Figures/MDS-1.svg" width="50%" style="display: block; margin: auto;" /&gt;
 
 
 ---
@@ -1372,7 +1372,7 @@ attr_rf  # test error ~ 16.36%
 vip(attr_rf)
 ```
 
-&lt;img src="figures/attrition-rf-01-1.svg" style="display: block; margin: auto;" /&gt;
+&lt;img src="Figures/09-Figures/attrition-rf-01-1.svg" style="display: block; margin: auto;" /&gt;
 
 ]
 
@@ -1563,7 +1563,7 @@ best_iter &lt;- gbm.perf(
 )
 ```
 
-&lt;img src="figures/boston_gbm_best-1.svg" width="50%" style="display: block; margin: auto;" /&gt;
+&lt;img src="Figures/09-Figures/boston_gbm_best-1.svg" width="50%" style="display: block; margin: auto;" /&gt;
 
 
 ---
@@ -1588,7 +1588,7 @@ system.time(
 
 ```
 ##    user  system elapsed 
-## 111.028   0.285 111.732
+## 112.849   0.376 113.769
 ```
 
 ]
@@ -1611,7 +1611,7 @@ system.time(
 
 ```
 ##    user  system elapsed 
-##   0.453   0.004   0.462
+##   0.444   0.002   0.454
 ```
 
 ]
@@ -1627,7 +1627,7 @@ system.time(
 grid.arrange(autoplot(pd1), autoplot(pd2), ncol = 2)
 ```
 
-&lt;img src="figures/boston-pdps-1.svg" style="display: block; margin: auto;" /&gt;
+&lt;img src="Figures/09-Figures/boston-pdps-1.svg" style="display: block; margin: auto;" /&gt;
 
 
 ---
@@ -1658,7 +1658,7 @@ ggplot(ames, aes(x = Sale_Price, y = Overall_Qual)) +
   theme_light() + theme(legend.position = "none")
 ```
 
-&lt;img src="figures/ames-densities-1.svg" width="70%" style="display: block; margin: auto;" /&gt;
+&lt;img src="Figures/09-Figures/ames-densities-1.svg" width="70%" style="display: block; margin: auto;" /&gt;
 
 **Source:** [Bradley Boehmke](https://github.com/bradleyboehmke)
 
@@ -1700,7 +1700,7 @@ ames_xgb_cv &lt;- xgb.cv(
 
 ---
 
-&lt;img src="figures/ames-xgboost-cv-plot-1.svg" width="80%" style="display: block; margin: auto;" /&gt;
+&lt;img src="Figures/09-Figures/ames-xgboost-cv-plot-1.svg" width="80%" style="display: block; margin: auto;" /&gt;
 
 
 ---
@@ -1739,13 +1739,17 @@ ames_xgb &lt;- xgboost(
 
 ```r
 # Variable importance plots
-p1 &lt;- vip(ames_xgb, feature_names = colnames(X), type = "Gain")
-p2 &lt;- vip(ames_xgb, feature_names = colnames(X), type = "Cover")
-p3 &lt;- vip(ames_xgb, feature_names = colnames(X), type = "Frequency")
-grid.arrange(p1, p2, p3, ncol = 3)
+vip(ames_xgb, feature_names = colnames(X))
 ```
 
-&lt;img src="figures/xgboost-vip-1.svg" style="display: block; margin: auto;" /&gt;
+&lt;img src="Figures/09-Figures/xgboost-vip-1.svg" style="display: block; margin: auto;" /&gt;
+
+```r
+# p1 &lt;- vip(ames_xgb, feature_names = colnames(X), type = "Gain")
+# p2 &lt;- vip(ames_xgb, feature_names = colnames(X), type = "Cover")
+# p3 &lt;- vip(ames_xgb, feature_names = colnames(X), type = "Frequency")
+# grid.arrange(p1, p2, p3, ncol = 3)
+```
 
 
 ---
@@ -1755,11 +1759,11 @@ grid.arrange(p1, p2, p3, ncol = 3)
 
 ```r
 # By default, `vip()` plots the top 10 features
-vip(ames_xgb, feature_names = colnames(X), type = "Gain", 
+vip(ames_xgb, feature_names = colnames(X), #type = "Gain", 
     num_features = nrow(X), bar = FALSE)
 ```
 
-&lt;img src="figures/xgboost-vip-2-1.svg" width="50%" style="display: block; margin: auto;" /&gt;
+&lt;img src="Figures/09-Figures/xgboost-vip-2-1.svg" width="50%" style="display: block; margin: auto;" /&gt;
 
 
 ---
@@ -1777,7 +1781,7 @@ p6 &lt;- autoplot(oq_ice, alpha = 0.1)
 grid.arrange(p4, p5, p6, ncol = 3)
 ```
 
-&lt;img src="figures/xgboost-pdp-1.svg" style="display: block; margin: auto;" /&gt;
+&lt;img src="Figures/09-Figures/xgboost-pdp-1.svg" style="display: block; margin: auto;" /&gt;
 
 
 ---
@@ -1785,7 +1789,7 @@ grid.arrange(p4, p5, p6, ncol = 3)
 ## Ames housing data
 
 
-&lt;img src="figures/xgboost-pdp-vi-1.svg" style="display: block; margin: auto;" /&gt;
+&lt;img src="Figures/09-Figures/xgboost-pdp-vi-1.svg" style="display: block; margin: auto;" /&gt;
 
 
 ---
@@ -1901,12 +1905,23 @@ if (window.HTMLWidgets) slideshow.on('afterShowSlide', function (slide) {
   });
 })(60000);</script>
 
-<script type="text/x-mathjax-config">
-MathJax.Hub.Config({
-  tex2jax: {
-    skipTags: ['script', 'noscript', 'style', 'textarea', 'pre']
+<script>
+(function() {
+  var i, text, code, codes = document.getElementsByTagName('code');
+  for (i = 0; i < codes.length;) {
+    code = codes[i];
+    if (code.parentNode.tagName !== 'PRE' && code.childElementCount === 0) {
+      text = code.textContent;
+      if (/^\\\((.|\s)+\\\)$/.test(text) || /^\\\[(.|\s)+\\\]$/.test(text) ||
+          /^\$\$(.|\s)+\$\$$/.test(text) ||
+          /^\\begin\{([^}]+)\}(.|\s)+\\end\{[^}]+\}$/.test(text)) {
+        code.outerHTML = code.innerHTML;  // remove <code></code>
+        continue;
+      }
+    }
+    i++;
   }
-});
+})();
 </script>
 <!-- dynamically load mathjax for compatibility with self-contained -->
 <script>
