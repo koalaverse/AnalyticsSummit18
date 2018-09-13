@@ -1,0 +1,30 @@
+---
+title: "Kaggle: Predicting Sales Prices"
+author: "Bradley C. Boehmke </br> and </br> Brandon M. Greenwell"
+date: "2018/05/12"
+output:
+  xaringan::moon_reader:
+    css: ["default", "scrollable.css", "hygge"]
+    lib_dir: libs
+    chakra: libs/remark-latest.min.js
+    nature:
+      highlightStyle: github
+      highlightLines: true
+      countIncrementalSlides: false
+---
+
+class: center, middle, inverse
+
+background-image: url(Images/kaggle.png)
+background-position: center
+background-size: contain
+
+---
+
+## Predicting home sales prices
+
+
+
+.full-width[.content-box-yellow[.bolder[.center[
+http://bit.ly/predict_sales
+]]]]

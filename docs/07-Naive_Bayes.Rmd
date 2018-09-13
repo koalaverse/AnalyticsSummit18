@@ -1,0 +1,614 @@
+---
+title: "The Naïve Classifier"
+author: "Bradley C. Boehmke </br> and </br> Brandon M. Greenwell"
+date: "2018/05/12"
+output:
+  xaringan::moon_reader:
+    css: ["default", "scrollable.css"]
+    lib_dir: libs
+    chakra: libs/remark-latest.min.js
+    nature:
+      highlightStyle: github
+      highlightLines: true
+      countIncrementalSlides: false
+---
+class: center, middle, inverse
+
+# Overview
+
+```{r 07-setup, include=FALSE}
+# Set global R options
+options(htmltools.dir.version = FALSE, servr.daemon = TRUE)
+
+# Set global knitr chunk options
+knitr::opts_chunk$set(
+  dev = "svg",
+  fig.align = "center",
+  fig.path = "Figures/07-Figures/",  # change 00 to chapter number!
+  cache = TRUE,
+  error = FALSE,
+  message = FALSE, 
+  warning = FALSE, 
+  collapse = FALSE 
+)
+```
+
+```{r 07-bayes-theorem, echo=FALSE, out.width="100%"}
+knitr::include_graphics("https://upload.wikimedia.org/wikipedia/commons/thumb/1/18/Bayes%27_Theorem_MMB_01.jpg/1200px-Bayes%27_Theorem_MMB_01.jpg")
+```
+
+---
+
+## The Idea
+
+* Founded on Bayesian probability theory
+
+* Incorporates the concept of *conditional probability*, the probabilty of event *A* given that event *B* has occurred [denoted as $P(A \vert B)$]
+
+* Let us assume we have a classification problem where we are asked to predict which employees are expected to churn (a problem of _attrition_)
+
+* Hence, we are seeking the probability of an employee belonging to attrition class $C_k$ (where $C_{yes} = \texttt{attrit}$ and $C_{no} = \texttt{non-attrit}$) given some predictor variables ( $x_1, x_2, \dots, x_p$ ).  
+
+* This can be written as $P(C_k|x_1, \dots, x_p)$
+
+* Bayes' theorem allows us to compute this probability with:
+
+$$ P(C_k \vert X) = \frac{P(C_k) \cdot P(X \vert C_k)}{P(X)} $$
+
+<br>
+<center>
+<bold>
+<font color="red">
+`r emo::ji("face with raised eyebrow")` I know, let's examine this equation a little more closely.
+</font>
+</bold>
+</center>
+
+---
+
+## The Idea
+
+$$ P(C_k \vert X) = \frac{\color{red}P\color{red}({\color{red}C_k}\color{red}) \cdot P(X \vert C_k)}{P(X)} $$
+
+* $\color{red}P\color{red}(\color{red}C_\color{red}k\color{red})$ <font color="red">is the ___prior probability___ of the outcome. Essentially, based on the historical data, what is the probability of an employee attriting or not.</font>
+
+---
+
+## The Idea
+
+$$ P(C_k \vert X) = \frac{P(C_k) \cdot \color{red} P\color{red}(\color{red}X \color{red}\vert \color{red}C_k\color{red})}{P(X)} $$
+
+* $P(C_k)$ is the prior probability of the outcome. Essentially, based on the historical data, what is the probability of an employee attriting or not.
+
+* $\color{red}P\color{red}(\color{red}X \color{red}\vert \color{red}C_\color{red}k\color{red})$ <font color="red">is the ___conditional probability___ or ___likelihood___. Essentially, for each class of the response variable (i.e. attrit or not attrit), what is the probability of observing the predictor values.</font>
+
+---
+
+## The Idea
+
+$$ P(C_k \vert X) = \frac{P(C_k) \cdot P(X \vert C_k)}{\color{red}P\color{red}(\color{red}X\color{red})} $$
+
+* $P(C_k)$ is the prior probability of the outcome. Essentially, based on the historical data, what is the probability of an employee attriting or not.
+
+* $P(X \vert C_k)$ is the conditional probability or likelihood. Essentially, for each class of the response variable (i.e. attrit or not attrit), what is the probability of observing the predictor values.
+
+* $\color{red}P\color{red}(\color{red}X\color{red})$ <font color="red">is the probability of the predictor variables. Essentially, based on the historical data, what is the probability of each observed combination of predictor variables. When new data comes in, this becomes our ___evidence___.</font> 
+
+---
+
+## The Idea
+
+$$ \color{red}P\color{red}(\color{red}C_k \color{red}\vert \color{red}X\color{red}) = \frac{P(C_k) \cdot P(X \vert C_k)}{P(X)} $$
+
+* $P(C_k)$ is the prior probability of the outcome. Essentially, based on the historical data, what is the probability of an employee attriting or not.
+
+* $P(X \vert C_k)$ is the conditional probability or likelihood. Essentially, for each class of the response variable (i.e. attrit or not attrit), what is the probability of observing the predictor values.
+
+* $P(X)$ is the probability of the predictor variables. Essentially, based on the historical data, what is the probability of each observed combination of predictor variables. When new data comes in, this becomes our evidence.
+
+* $\color{red}P\color{red}(\color{red}C_\color{red}k \color{red}\vert \color{red}X\color{red})$ <font color="red">is called our ___posterior probability___.  By combining our observed information, we are updating our _a priori_ information on probabilities to compute a posterior probability that an observation has class $\color{red}C_\color{red}k$.</font>
+
+---
+
+## The Idea
+
+In plain english...
+
+<br>
+<br>
+
+$$\texttt{posterior} = \frac{\texttt{prior} \times \texttt{likelihood}}{\texttt{evidence}} $$
+
+<br>
+<br>
+
+```{r 07-i-see, echo=FALSE, out.height=200, out.width=200}
+knitr::include_graphics("Images/i_see.png")
+```
+
+
+---
+
+## But we have a major problem
+
+* As the number of features grow, computing $P(C_k \vert X)$ becomes intractable
+
+* A response variable with _m_ classes and _p_ predictors requires $m^p$ probabilities computed
+
+```{r 07-exponential_probabilities, echo=FALSE, fig.height=3.5, fig.width=8}
+library(tibble)
+library(tidyr)
+library(dplyr)
+library(ggplot2)
+
+tibble(
+  p = 1:30,
+  binary = 2^p,
+  `3 class mulinomial` = 3^p
+) %>%
+  gather(classification, m, -p) %>%
+  mutate(classification = factor(classification, levels = c("binary", "3 class mulinomial"))) %>% 
+  ggplot(aes(p, m)) +
+  geom_line() +
+  facet_wrap(~ classification) +
+  scale_x_continuous("Predictors") +
+  scale_y_log10("Probabilities required", labels = scales::comma)
+```
+
+<center>
+<bold>
+<font color="red">
+And just when you thought you had it `r emo::ji("angry_face")`
+</font>
+</bold>
+</center>
+
+---
+
+## A Simplified Classifier
+
+The ___naïve Bayes classifier___ makes a simplifying assumption:
+
+* predictor variables are _conditionally independent_ of one another given the response value,
+
+* allows us to simplify our computation such that the posterior probability is simply the product of the probability distribution for each individual variable conditioned on the response category
+
+$$P(C_k \vert X) = \prod^n_{i=1} P(x_i \vert C_k)$$
+
+* now we are only required to compute $m \times p$ probabilities
+
+<br>
+
+```{r 07-easy-peasy, echo=FALSE, out.height=150, out.width=150}
+knitr::include_graphics("Images/easy_peasy.png")
+```
+
+---
+
+## Advantages and Shortcomings
+
+.pull-left[
+
+__<font color="green">Pros</font>__
+
+* Simple (intuitively & computationally)
+
+* Fast
+
+* Performs well on small data
+
+* Scales well to large data
+
+]
+
+.pull-right[
+
+__<font color="red">Cons</font>__
+
+* Assumes equally important & independent features
+
+* Faulty assumption
+
+* The more this is violated the less we can rely on the exact posterior probability
+
+* ___But___, the rank ordering of propensities will still be correct
+
+]
+
+<br><br>
+<center>
+<bold>
+<font color="red">
+Naïve Bayes is often a surprisingly accurate algorithm; however, on average it rarely can compete with the accuracy of advanced tree-based methods (random forests & gradient boosting machines) but is definitely a `r emo::ji("wrench")` worth having in your toolkit.
+</font>
+</bold>
+</center>
+
+---
+
+class: center, middle, inverse
+
+# Implementation
+
+---
+
+## Packages
+
+Several packages to apply naïve Bayes:
+
+* `e1071`
+
+* `klaR`
+
+* `naivebayes`
+
+* `bnclassify`
+
+* `h2o`
+
+* <mark>`caret`: an aggregator package</mark>
+
+---
+
+## Prerequisites
+
+__Packages used__
+
+```{r 07-prereq-pkg}
+library(rsample)  # data splitting 
+library(dplyr)    # data transformation
+library(ggplot2)  # data visualization
+library(caret)    # implementing with caret
+```
+
+__Data used__
+
+```{r 07-prereq-data}
+# convert some numeric variables to factors
+attrition <- attrition %>%
+  mutate(
+    JobLevel = factor(JobLevel),
+    StockOptionLevel = factor(StockOptionLevel),
+    TrainingTimesLastYear = factor(TrainingTimesLastYear)
+  )
+
+# Create training (70%) and test (30%) sets for the attrition data.
+# Use set.seed for reproducibility
+set.seed(123)
+split <- initial_split(attrition, prop = .7, strata = "Attrition")
+train <- training(split)
+test  <- testing(split)
+```
+
+---
+class: center, middle, inverse
+
+background-image: url(http://amsterdammakerfestival.nl/wp-content/uploads/2016/08/the-challenge.png)
+
+
+---
+
+## Your Turn!
+
+How well does our assumption of ___conditional independence___ between the features hold up?
+
+---
+
+## Solution: assessing conditional independence
+
+```{r 07-solution1, fig.height=4, fig.width=4}
+train %>%
+  filter(Attrition == "Yes") %>%
+  select_if(is.numeric) %>%
+  cor() %>%
+  corrplot::corrplot()
+```
+
+
+---
+
+## Default Settings
+
+.scrollable[
+
+```{r 07-model1}
+# create response and feature data
+features <- setdiff(names(train), "Attrition")
+x <- train[, features]
+y <- train$Attrition
+
+# set up 10-fold cross validation procedure
+train_control <- trainControl(
+  method = "cv", 
+  number = 10
+  )
+
+# train model
+nb.m1 <- train(
+  x = x,
+  y = y,
+  method = "nb", #<<
+  trControl = train_control
+  )
+
+# results
+confusionMatrix(nb.m1)
+```
+
+]
+
+
+<center>
+<bold>
+<font color="red">
+Thoughts? `r emo::ji("thinking")`
+</font>
+</bold>
+</center>
+
+---
+
+## Benchmark comparison
+
+.pull-left[
+
+```{r 07-m1-cm, collapse=TRUE}
+# initial naive results
+confusionMatrix(nb.m1)
+```
+
+]
+
+.pull-right[
+
+```{r 07-benchmark, collapse=TRUE}
+# distribution of Attrition rates across train & test set
+table(train$Attrition) %>% prop.table()
+table(test$Attrition) %>% prop.table()
+```
+
+]
+
+<br><br><br><br><br><br>
+<center>
+<bold>
+<font color="red">
+The goal is to improve predictive accuracy over and above our 83% benchmark.
+</font>
+</bold>
+</center>
+
+---
+
+class: center, middle, inverse
+
+# Tuning
+
+---
+
+## What Can We Tune?
+
+__Continuous variable density estimator__
+
+.scrollable[
+
+.pull-left[
+
+* assumes normal distribution
+
+* can normalize with Box-Cox transformation
+
+* use use non-parametric kernel density estimators
+
+* or combination of the two
+
+]
+
+.pull-right[
+
+```{r 07-nb-cv-est, fig.height=10}
+train %>% 
+  select_if(is.numeric) %>% 
+  gather(metric, value) %>% 
+  ggplot(aes(value, fill = metric)) + 
+  geom_density(show.legend = FALSE) + 
+  facet_wrap(~ metric, scales = "free", ncol = 2)
+```
+
+
+]
+]
+
+---
+
+## What Can We Tune?
+
+__Laplace smoother__
+
+* naïve Bayes uses the product of feature probabilities conditioned on each class.
+
+* if unseen data includes a feature $\leftrightarrow$ response combination not seen in the training data then the probability $P(x_i \vert C_k) = 0$ will ripple through the entire multiplication of all features and force the posterior probability to be zero for that class.
+
+* Laplace smoother adds a small constant to every feature $\leftrightarrow$ response combination so that each feature has a nonzero probability of occuring for each class.
+
+---
+
+## Implementation
+
+We can tune these hyperparameters for our naïve Bayes model with:
+
+* `usekernel` parameter allows us to use a kernel density estimate for continuous variables versus a guassian density estimate,
+
+* `adjust` allows us to adjust the bandwidth of the kernel density (larger numbers mean more flexible density estimate),
+
+* `fL` allows us to incorporate the Laplace smoother.
+
+
+---
+
+## Implementation
+
+```{r 07-tuning1}
+# set up tuning grid
+search_grid <- expand.grid(
+  usekernel = c(TRUE, FALSE),
+  adjust = 0:3,
+  fL = 0:2
+)
+
+nb.m2 <- train(
+  x = x,
+  y = y,
+  method = "nb",
+  trControl = train_control,
+  tuneGrid = search_grid #<<
+  )
+
+# top 3 modesl
+nb.m2$results %>% 
+  top_n(3, wt = Accuracy) %>%
+  arrange(desc(Accuracy))
+```
+
+---
+class: center, middle, inverse
+
+background-image: url(http://amsterdammakerfestival.nl/wp-content/uploads/2016/08/the-challenge.png)
+
+
+---
+
+## Your Turn!
+
+* Tune this model some more. Do you gain any improvement?
+
+* Can you think if anything else you could do (i.e. pre-processing)?
+
+
+---
+
+## Solution
+
+.scrollable[
+
+```{r 07-solution2}
+# set up tuning grid
+search_grid <- expand.grid(
+  usekernel = c(TRUE, FALSE),
+  fL = 0:5,
+  adjust = seq(0, 5, by = 1)
+)
+
+# train model
+nb.m3 <- train(
+  x = x,
+  y = y,
+  method = "nb",
+  trControl = train_control,
+  tuneGrid = search_grid,
+  preProc = c("BoxCox", "center", "scale", "pca")
+  )
+
+# top 5 modesl
+nb.m3$results %>% 
+  top_n(5, wt = Accuracy) %>%
+  arrange(desc(Accuracy))
+
+# plot search grid results
+plot(nb.m3)
+
+# results for best model
+confusionMatrix(nb.m3)
+```
+
+]
+
+---
+
+## Predicting
+
+Once we have found some optimal model, we can assess the accuracy on our final holdout test set:
+
+```{r 07-predicting}
+pred <- predict(nb.m3, newdata = test)
+confusionMatrix(pred, test$Attrition)
+```
+
+
+---
+
+# Time to Wake Up!
+
+---
+
+## Prior algorithms as classifiers
+
+All the algorithms we saw yesterday can be used as classifiers:
+
+.scrollable[
+
+```{r, eval=FALSE}
+# regularized classification --> type.measure can also be "class" or "auc"
+cv.glmnet(
+  x, y, 
+  family = "binomial", #<<
+  type.measure = "deviance" #<<
+  )
+
+# MARS
+earth(
+  x, y, 
+  glm = list(family = binomial) #<<
+)
+
+# feedfoward neural network
+model <- keras_model_sequential() %>%
+  layer_dense(units = 10, activation = "relu", input_shape = ncol(x)) %>%
+  layer_dense(units = 5, activation = "relu") %>%
+  layer_dense(units = 1, activation = "sigmoid") %>% #<<
+  compile(
+    optimizer = "rmsprop",
+    loss = "categorical_crossentropy", #<<
+    metrics = c("accuracy") #<<
+  )
+
+model %>% fit(x = x, y = y)
+```
+
+]
+
+---
+class: center, middle, inverse
+
+background-image: url(http://amsterdammakerfestival.nl/wp-content/uploads/2016/08/the-challenge.png)
+
+
+---
+
+## Your Turn!
+
+* Spend the next 30 minutes practicing implementing these other classifiers.
+
+* Remember, some algorithms require different feature preprocessing.
+
+* Can you compare performance to the naïve Bayes classifier?
+
+
+---
+
+class: center, middle, inverse
+
+# Learning More
+
+---
+
+## Additional Naïve Bayes Resources
+
+* [Andrew Moore's tutorials](http://www.cs.cmu.edu/~./awm/tutorials/naive.html)
+
+* [Naive Bayes classifiers by Kevin Murphy](https://datajobsboard.com/wp-content/uploads/2017/01/Naive-Bayes-Kevin-Murphy.pdf)
+
+* [Data Mining and Predictive Analytics, Ch. 14](https://www.amazon.com/Mining-Predictive-Analytics-Daniel-Chantal/dp/8126559136/ref=sr_1_1?ie=UTF8&qid=1524231609&sr=8-1&keywords=data+mining+and+predictive+analytics+2nd+edition+%2C+by+larose)
+
+
+

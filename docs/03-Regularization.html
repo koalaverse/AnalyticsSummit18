@@ -1,0 +1,1186 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Regularization</title>
+    <meta charset="utf-8">
+    <meta name="author" content="Bradley C. Boehmke  and  Brandon M. Greenwell" />
+    <link href="libs/remark-css/default.css" rel="stylesheet" />
+    <link href="libs/remark-css/hygge.css" rel="stylesheet" />
+    <link rel="stylesheet" href="scrollable.css" type="text/css" />
+  </head>
+  <body>
+    <textarea id="source">
+class: center, middle, inverse, title-slide
+
+# Regularization
+### Bradley C. Boehmke </br> and </br> Brandon M. Greenwell
+### 2018/05/12
+
+---
+
+
+class: center, middle, inverse
+
+background-image: url(Images/overview_icon.jpg)
+background-size: cover
+
+# Overview
+
+
+
+
+---
+
+## OLS Regression
+
+&lt;img src="Images/sq.errors-1.png" width="933" style="display: block; margin: auto;" /&gt;
+
+
+
+
+* Model form: `\(y_i = \beta_0 + \beta_{1}x_{i1} + + \beta_{2}x_{i2} \cdots + \beta_{p}x_{ip} + \epsilon_i\)`
+
+* Objective function: `\(\text{minimize} \bigg \{ SSE = \sum^n_{i=1} (y_i - \hat{y}_i)^2 \bigg \} \equiv \text{minimize MSE}\)`
+
+---
+
+## OLS Regression
+
+Some key assumptions we make when working with OLS regression:
+
+* Linear relationship
+
+* Multivariate normality
+
+* No autocorrelation
+
+* Homoscedastic (constant variance in residuals) 
+
+* `\(p &lt; n\)` (there is no unique solution when `\(p &gt; n\)`)
+
+* No or little multicollinearity
+
+&lt;br&gt;&lt;br&gt;
+
+.full-width[.content-box-blue[.bolder[.center[
+Under standard assumptions, the coefficients produced by OLS are unbiased and, of all unbiased linear techniques, have the lowest variance. 😄]]]]
+
+
+---
+
+## OLS Regression
+
+__However__, as `\(p\)` grows there are three main issues we most commonly run into:
+
+1. Multicollinearity 🤬
+
+2. Insufficient solution 😕
+
+3. Interpretability 🤷
+
+
+
+---
+
+## Multicollinearity 
+
+As *p* increases `\(\rightarrow\)` multicollinearity `\(\rightarrow\)` high variability in our coefficient terms.
+
+
+
+
+```r
+# train models with strongly correlated variables
+m1 &lt;- lm(Sale_Price ~ Gr_Liv_Area + TotRms_AbvGrd, data = ames_train)
+m2 &lt;- lm(Sale_Price ~ Gr_Liv_Area, data = ames_train)
+m3 &lt;- lm(Sale_Price ~ TotRms_AbvGrd, data = ames_train)
+
+*coef(m1)
+##   (Intercept)   Gr_Liv_Area TotRms_AbvGrd 
+##    46264.9749      137.8144   -11191.4972
+*coef(m2)
+## (Intercept) Gr_Liv_Area 
+##   15796.516     110.059
+*coef(m3)
+##   (Intercept) TotRms_AbvGrd 
+##      19713.35      25014.02
+```
+
+
+.full-width[.content-box-blue[.bolder[.center[
+Causes overfitting, which means we have high variance in the bias-variance tradeoff space. 🤬
+]]]]
+
+
+---
+
+## Insufficient Solution
+
+When `\(p &gt; n\)` `\(\rightarrow\)` OLS solution matrix is *not* invertible `\(\rightarrow\)`:
+
+1. infinite solution sets, most of which overfit data,
+
+2. computationally infeasible.
+
+
+&lt;br&gt;&lt;br&gt;&lt;br&gt;&lt;br&gt;&lt;br&gt;&lt;br&gt;&lt;br&gt;
+
+.full-width[.content-box-blue[.bolder[.center[
+Leads to more frustration and confusion! 😕
+]]]]
+
+
+
+---
+
+## Interpretability
+
+With a large number of features, we often would like to identify a smaller subset of these features that exhibit the strongest effects.
+
+* Approach 1: model selection
+    - computationally inefficient (Ames data: `\(2^{80}=1.208926E+24\)` models to evaluate)
+    - simply assume a feature as in or out `\(\rightarrow\)` *hard threshholding*
+
+* Approach 2: 
+    - retain all coefficients
+    - slowly pushes a feature's effect towards zero `\(\rightarrow\)` *soft threshholding*
+    
+&lt;br&gt;&lt;br&gt;&lt;br&gt;
+
+.full-width[.content-box-blue[.bolder[.center[
+Without interpretability we just have accuracy! 🤷
+]]]]
+
+
+
+---
+
+## Regularized Regression
+
+One alternative to OLS regression is to use regularized regression (aka *penalized* models or *shrinkage* methods)
+
+.large[
+
+`$$\text{minimize } \big \{ SSE + P \big \}$$`
+
+]
+
+* Constrains magnitude of the coefficients
+
+* Progressively shrinks coefficients to zero
+
+* Reduces variability of coefficients (pulls correlated coefficients together)
+
+&lt;br&gt;&lt;br&gt;&lt;br&gt;&lt;br&gt;&lt;br&gt;
+
+.full-width[.content-box-blue[.bolder[.center[
+Reduces variance of model, which can also reduce error! 🎉
+]]]]
+
+
+
+---
+
+class: center, middle, inverse
+
+background-image: url(Images/ridge_icon.jpg)
+background-size: cover
+
+# Ridge Regression
+
+---
+
+## Ridge regression: the idea
+
+`$$\text{Objective function: minimize } \bigg \{ SSE + \lambda \sum^p_{j=1} \beta_j^2 \bigg \}$$`
+
+---
+
+## Ridge regression: the idea
+
+`$$\text{Objective function: minimize } \bigg \{ SSE + \lambda \sum^p_{j=1} \beta_j^2 \bigg \}$$`
+
+&lt;br&gt;&lt;br&gt;&lt;br&gt;&lt;br&gt;
+
+&lt;img src="Images/lambda.001.png" width="1753" style="display: block; margin: auto;" /&gt;
+
+---
+
+## Ridge regression: the idea
+
+`$$\text{Objective function: minimize } \bigg \{ SSE + \lambda \sum^p_{j=1} \beta_j^2 \bigg \}$$`
+
+&lt;img src="03-Regularization_files/figure-html/unnamed-chunk-5-1.svg" style="display: block; margin: auto;" /&gt;
+
+
+---
+
+## Ridge regression: implementation
+
+**Packages used:**
+
+
+```r
+library(rsample)  # data splitting &amp; resampling
+library(tidyr)    # data manipulation
+library(dplyr)    # data manipulation
+library(ggplot2)  # visualization
+library(caret)    # data prep
+*library(glmnet)   # implementing regularized regression approaches
+```
+
+**Data used:**
+
+
+```r
+boston &lt;- pdp::boston             # example data
+ames &lt;- AmesHousing::make_ames()  # exercise data
+```
+
+---
+
+## Ridge regression: implementation
+
+**Data prep:**
+
+.scrollable[
+
+
+```r
+# create sample splits
+set.seed(123)
+data_split &lt;- initial_split(boston, prop = .7, strata = "cmedv")
+
+boston_train &lt;- training(data_split)
+boston_test  &lt;- testing(data_split)
+
+# create feature sets
+*one_hot &lt;- caret::dummyVars(cmedv ~ ., data = boston_train, fullRank = TRUE)
+*train_x &lt;- predict(one_hot, boston_train)
+*train_y &lt;- boston_train$cmedv
+
+test_x &lt;- predict(one_hot, boston_test)
+test_y &lt;- boston_test$cmedv
+
+# dimension of training feature set
+dim(train_x)
+## [1] 356  15
+```
+
+.full-width[.content-box-blue[.bolder[.center[
+`glmnet` does not use the formula method (&lt;code&gt;y ~ x&lt;/code&gt;) so prior to modeling we need to create our feature and target set.
+]]]]
+
+]
+
+---
+
+class: center, middle, inverse
+
+background-image: url(http://amsterdammakerfestival.nl/wp-content/uploads/2016/08/the-challenge.png)
+
+
+---
+
+## Your Turn!
+
+1. Create training (70%) and test (30%) sets for the `AmesHousing::make_ames()` data.  Use `set.seed(123)` to match my output.
+
+2. Create training and testing feature model matrices and response vectors.
+
+3. What is the dimension of of your feature matrix?
+
+---
+
+## Solution: Preparing data
+
+
+```r
+# Create training (70%) and test (30%) sets for the AmesHousing::make_ames() data.
+# Use set.seed(123)
+
+set.seed(123)
+ames_split &lt;- initial_split(AmesHousing::make_ames(), prop = .7, strata = "Sale_Price")
+ames_train &lt;- training(ames_split)
+ames_test  &lt;- testing(ames_split)
+
+# Create training and testing feature model matrices and response vectors.
+ames_one_hot &lt;- caret::dummyVars(Sale_Price ~ ., data = ames_train, fullRank = TRUE)
+ames_train_x &lt;- predict(ames_one_hot, ames_train)
+ames_train_y &lt;- log(ames_train$Sale_Price)
+
+ames_test_x &lt;- predict(ames_one_hot, ames_test)
+ames_test_y &lt;- log(ames_test$Sale_Price)
+
+# What is the dimension of of your feature matrix?
+dim(ames_train_x)
+## [1] 2054  307
+```
+
+---
+
+## Ridge regression: implementation
+
+To apply a Ridge model we can use the `glmnet::glmnet` function
+
+- Ridge: &lt;font color = "red"&gt;&lt;code&gt;alpha = 0&lt;/code&gt;&lt;/font&gt;, Lasso: `alpha = 1`, elastic net: &lt;code&gt;0 `\(\leq\)` alpha `\(\leq\)` 1&lt;/code&gt;
+- essential that predictor variables are standardized (`standardize = TRUE`)
+- `glmnet` performs Ridge across wide range of `\(\lambda\)`
+
+.scrollable[
+
+.pull-left[
+
+
+```r
+## fit ridge regression
+boston_ridge &lt;- glmnet(
+  x = train_x,
+  y = train_y,
+* alpha = 0
+)
+
+plot(boston_ridge, xvar = "lambda")
+```
+
+&lt;img src="03-Regularization_files/figure-html/unnamed-chunk-9-1.svg" style="display: block; margin: auto;" /&gt;
+
+]
+
+.pull-right[
+
+
+```r
+## lambdas applied
+boston_ridge$lambda
+##   [1] 6963.2514683 6344.6553994 5781.0137003 5267.4443763 4799.4991356
+##   [6] 4373.1248604 3984.6285006 3630.6450867 3308.1085837 3014.2253346
+##  [11] 2746.4498635 2502.4628271 2280.1509266 2077.5886027 1893.0213573
+##  [16] 1724.8505573 1571.6195877 1432.0012351 1304.7861921 1188.8725829
+##  [21] 1083.2564193  987.0229046  899.3385101  819.4437556  746.6466308
+##  [26]  680.3166020  619.8791501  564.8107948  514.6345605  468.9158446
+##  [31]  427.2586533  389.3021721  354.7176401  323.2055026  294.4928165
+##  [36]  268.3308864  244.4931100  222.7730159  202.9824752  184.9500715
+##  [41]  168.5196169  153.5487986  139.9079466  127.4789102  116.1540351
+##  [46]  105.8352308   96.4331206   87.8662679   80.0604709   72.9481193
+##  [51]   66.4676094   60.5628102   55.1825771   50.2803090   45.8135449
+##  [56]   41.7435959   38.0352099   34.6562666   31.5774994   28.7722414
+##  [61]   26.2161948   23.8872203   21.7651455   19.8315899   18.0698062
+##  [66]   16.4645344   15.0018705   13.6691457   12.4548165   11.3483649
+##  [71]   10.3402074    9.4216119    8.5846219    7.8219877    7.1271039
+##  [76]    6.4939516    5.9170469    5.3913927    4.9124363    4.4760290
+##  [81]    4.0783909    3.7160779    3.3859518    3.0851531    2.8110766
+##  [86]    2.5613483    2.3338052    2.1264764    1.9375661    1.7654381
+##  [91]    1.6086014    1.4656977    1.3354891    1.2168480    1.1087465
+##  [96]    1.0102486    0.9205009    0.8387261    0.7642160    0.6963251
+```
+
+]
+
+&lt;br&gt;&lt;br&gt;
+
+]
+
+
+---
+
+## Ridge regression: implementation
+
+We can also directly access the coefficients for a model using `coef`:
+
+.scrollable[
+
+.pull-left[
+
+
+```r
+# small lambda = big coefficients
+tidy(coef(boston_ridge)[, 100])
+## # A tibble: 16 x 2
+##    names                x
+##    &lt;chr&gt;            &lt;dbl&gt;
+##  1 (Intercept) -574      
+##  2 lon         -  6.31   
+##  3 lat            3.52   
+##  4 crim        -  0.0830 
+##  5 zn             0.0366 
+##  6 indus       -  0.0725 
+##  7 chas.1         2.55   
+##  8 nox         - 10.8    
+##  9 rm             4.29   
+## 10 age         -  0.0105 
+## 11 dis         -  1.20   
+## 12 rad            0.131  
+## 13 tax         -  0.00602
+## 14 ptratio     -  0.698  
+## 15 b              0.0107 
+## 16 lstat       -  0.422
+```
+
+]
+
+.pull-right[
+
+
+```r
+# big lambda = small coefficients
+tidy(coef(boston_ridge)[, 1])
+## # A tibble: 16 x 2
+##    names                                                  x
+##    &lt;chr&gt;                                              &lt;dbl&gt;
+##  1 (Intercept)  22.6                                       
+##  2 lon         - 0.0000000000000000000000000000000000405   
+##  3 lat           0.00000000000000000000000000000000000113  
+##  4 crim        - 0.000000000000000000000000000000000000530 
+##  5 zn            0.000000000000000000000000000000000000150 
+##  6 indus       - 0.000000000000000000000000000000000000685 
+##  7 chas.1        0.00000000000000000000000000000000000622  
+##  8 nox         - 0.0000000000000000000000000000000000365   
+##  9 rm            0.00000000000000000000000000000000000953  
+## 10 age         - 0.000000000000000000000000000000000000129 
+## 11 dis           0.00000000000000000000000000000000000113  
+## 12 rad         - 0.000000000000000000000000000000000000417 
+## 13 tax         - 0.0000000000000000000000000000000000000263
+## 14 ptratio     - 0.00000000000000000000000000000000000208  
+## 15 b             0.0000000000000000000000000000000000000353
+## 16 lstat       - 0.000000000000000000000000000000000000947
+```
+
+]
+
+
+
+
+&lt;center&gt;
+&lt;bold&gt;
+&lt;font color="red"&gt;
+What's the best `\(\lambda\)` value? How much improvement are we experiencing with our model?
+&lt;/font&gt;
+&lt;/bold&gt;
+&lt;/center&gt;
+
+&lt;br&gt;
+
+]
+
+---
+
+## Ridge regression: tuning
+
+* `\(\lambda\)`: tuning parameter that helps control our model from over-fitting to the training data
+* to identify the optimal `\(\lambda\)` value we need to perform cross-validation
+* `cv.glmnet` provides a built-in option to perform k-fold CV
+
+.scrollable[
+
+
+```r
+## fit CV ridge regression
+boston_ridge &lt;- cv.glmnet(
+  x = train_x,
+  y = train_y,
+  alpha = 0,
+* nfolds = 10
+)
+
+## plot CV MSE
+plot(boston_ridge)
+```
+
+&lt;img src="03-Regularization_files/figure-html/unnamed-chunk-13-1.svg" style="display: block; margin: auto;" /&gt;
+
+&lt;br&gt;
+
+]
+
+---
+
+## Ridge regression: tuning
+
+.scrollable[
+
+
+```r
+# minimum MSE and respective lambda
+min(boston_ridge$cvm)      
+## [1] 24.561
+boston_ridge$lambda.min     
+## [1] 0.764216
+
+# MSE and respective lambda within 1 standard error of minimum MSE
+boston_ridge$cvm[boston_ridge$lambda == boston_ridge$lambda.1se]
+## [1] 28.60901
+boston_ridge$lambda.1se 
+## [1] 5.391393
+```
+
+&lt;img src="03-Regularization_files/figure-html/unnamed-chunk-15-1.svg" style="display: block; margin: auto;" /&gt;
+
+]
+
+---
+
+## Ridge regression: &lt;font color = "green"&gt;pros&lt;/font&gt;
+
+The Ridge regression model:
+
+* pushes many of the correlated features towards each other rather than allowing for one to be wildly positive and the other wildly negative.
+
+* non-important features have been pushed closer to zero...minimizing noise
+
+* &lt;font color = "green"&gt;provides us more clarity in identifying the true signals in our model.&lt;/font&gt;
+
+---
+
+## Ridge regression: &lt;font color = "green"&gt;pros&lt;/font&gt;
+
+.scrollable[
+
+
+
+```r
+coef(boston_ridge, s = "lambda.1se") %&gt;%
+  tidy() %&gt;%
+  filter(row != "(Intercept)") %&gt;%
+  ggplot(aes(value, reorder(row, value))) +
+  geom_point() +
+  ggtitle("Rank-order of variable influence") +
+  xlab("Coefficient") +
+  ylab(NULL)
+```
+
+&lt;img src="03-Regularization_files/figure-html/unnamed-chunk-16-1.svg" style="display: block; margin: auto;" /&gt;
+
+]
+
+---
+
+## Ridge regression: &lt;font color = "red"&gt;cons&lt;/font&gt;
+
+The Ridge regression model:
+
+* retains &lt;bold&gt;&lt;font color="red"&gt;all&lt;/font&gt;&lt;/bold&gt; variables
+
+* does not perform feature selection
+
+---
+
+class: center, middle, inverse
+
+background-image: url(http://amsterdammakerfestival.nl/wp-content/uploads/2016/08/the-challenge.png)
+
+
+---
+
+## Your Turn!
+
+1. Apply a 10-fold CV Ridge regression model to ames data.
+
+2. What is the `\(\lambda\)` value with the lowest MSE?
+
+3. What is the `\(\lambda\)` value within 1 standard error of the lowest MSE?
+
+---
+
+## Solution: Preparing data
+
+.scrollable[
+
+
+```r
+## Apply CV Ridge regression to ames data
+ames_ridge &lt;- cv.glmnet(
+  x = ames_train_x,
+  y = ames_train_y,
+  alpha = 0
+)
+
+plot(ames_ridge)
+```
+
+&lt;img src="03-Regularization_files/figure-html/unnamed-chunk-17-1.svg" style="display: block; margin: auto;" /&gt;
+
+]
+
+---
+
+## Solution: Preparing data
+
+.scrollable[
+
+
+```r
+# minimum MSE and respective lambda
+min(ames_ridge$cvm)      
+## [1] 0.02216293
+ames_ridge$lambda.min     
+## [1] 0.1357169
+
+# MSE and respective lambda within 1 standard error of minimum MSE
+ames_ridge$cvm[ames_ridge$lambda == ames_ridge$lambda.1se]
+## [1] 0.02635513
+ames_ridge$lambda.1se 
+## [1] 0.7948967
+```
+
+&lt;img src="03-Regularization_files/figure-html/unnamed-chunk-19-1.svg" style="display: block; margin: auto;" /&gt;
+
+]
+
+---
+
+class: center, middle, inverse
+
+background-image: url(Images/lasso_icon.jpg)
+background-size: cover
+
+# Lasso Regression
+
+## least absolute shrinkage and selection operator
+
+---
+
+## Lasso regression: the idea
+
+.scrollable[
+
+`$$\text{Objective function: minimize } \bigg \{ SSE + \lambda \sum^p_{j=1} | \beta_j | \bigg \}$$`
+
+&lt;img src="03-Regularization_files/figure-html/unnamed-chunk-20-1.svg" style="display: block; margin: auto;" /&gt;
+
+.full-width[.content-box-blue[.bolder[.center[
+Will actually push coefficients to zero...great for automated feature selection!
+]]]]
+
+]
+
+---
+
+## Lasso: implementation
+
+.scrollable[
+
+To apply a Lasso model we can use the `glmnet::glmnet` function
+
+- Ridge: `alpha = 0` Lasso: &lt;font color = "red"&gt;&lt;code&gt;alpha = 1&lt;/code&gt;&lt;/font&gt;, elastic net: &lt;code&gt;0 `\(\leq\)` alpha `\(\leq\)` 1&lt;/code&gt;
+- essential that predictor variables are standardized
+- `glmnet` performs Lasso across wide range of `\(\lambda\)`
+
+
+
+```r
+## fit lasso regression
+boston_lasso &lt;- glmnet(
+  x = train_x,
+  y = train_y,
+* alpha = 1
+)
+
+plot(boston_lasso, xvar = "lambda")
+```
+
+&lt;img src="03-Regularization_files/figure-html/unnamed-chunk-21-1.svg" style="display: block; margin: auto;" /&gt;
+
+
+]
+
+
+---
+
+## Lasso: tuning
+
+.full-width[.content-box-yellow[.bolder[.center[
+We can use the same operations as we did with Ridge regression to perform CV.
+]]]]
+
+.scrollable[
+
+
+```r
+## fit CV lasso regression
+boston_lasso &lt;- cv.glmnet(
+  x = train_x,
+  y = train_y,
+  alpha = 1
+)
+
+## plot CV MSE
+plot(boston_lasso)
+```
+
+&lt;img src="03-Regularization_files/figure-html/unnamed-chunk-22-1.svg" style="display: block; margin: auto;" /&gt;
+
+]
+
+---
+
+class: center, middle, inverse
+
+background-image: url(http://amsterdammakerfestival.nl/wp-content/uploads/2016/08/the-challenge.png)
+
+
+---
+
+## Your Turn!
+
+1. Apply a 10-fold CV Lasso regression model to ames data.
+
+2. What is the `\(\lambda\)` value with the lowest MSE?
+
+3. What is the `\(\lambda\)` value within 1 standard error of the lowest MSE?
+
+---
+
+## Solution: Preparing data
+
+.scrollable[
+
+
+```r
+## Apply CV Lasso regression to ames data
+ames_lasso &lt;- cv.glmnet(
+  x = ames_train_x,
+  y = ames_train_y,
+  alpha = 1
+)
+
+plot(ames_lasso)
+```
+
+&lt;img src="03-Regularization_files/figure-html/unnamed-chunk-23-1.svg" style="display: block; margin: auto;" /&gt;
+
+]
+
+---
+
+## Solution: Preparing data
+
+.scrollable[
+
+
+```r
+# minimum MSE and respective lambda
+min(ames_lasso$cvm)      
+## [1] 0.02344511
+ames_lasso$lambda.min     
+## [1] 0.003865266
+
+# MSE and respective lambda within 1 standard error of minimum MSE
+ames_lasso$cvm[ames_lasso$lambda == ames_lasso$lambda.1se]
+## [1] 0.0275068
+ames_lasso$lambda.1se 
+## [1] 0.01560415
+```
+
+&lt;img src="03-Regularization_files/figure-html/unnamed-chunk-25-1.svg" style="display: block; margin: auto;" /&gt;
+
+]
+
+
+---
+
+class: center, middle, inverse
+
+background-image: url(Images/elastic_net_icon.jpg)
+background-size: cover
+
+# Elastic nets
+
+
+---
+
+## Elastic nets: the idea
+
+`$$\text{Objective function: minimize } \bigg \{ SSE + \lambda_1 \sum^p_{j=1} \beta_j^2 + \lambda_2 \sum^p_{j=1} | \beta_j | \bigg \}$$`
+
+&lt;br&gt;&lt;br&gt;&lt;br&gt;&lt;br&gt;
+
+.full-width[.content-box-yellow[.bolder[.center[
+Enables effective regularization via the ridge penalty with the feature selection characteristics of the lasso penalty!
+]]]]
+
+
+---
+
+## Elastic nets: implementation
+
+.scrollable[
+
+
+```r
+lasso    &lt;- glmnet(train_x, train_y, alpha = 1.0) 
+*elastic1 &lt;- glmnet(train_x, train_y, alpha = 0.25)
+*elastic2 &lt;- glmnet(train_x, train_y, alpha = 0.75)
+ridge    &lt;- glmnet(train_x, train_y, alpha = 0.0)
+```
+
+&lt;img src="03-Regularization_files/figure-html/unnamed-chunk-27-1.svg" style="display: block; margin: auto;" /&gt;
+
+]
+
+---
+
+## Elastic nets: tuning
+
+Two tuning parameters:
+
+* `\(\lambda\)`
+
+* `alpha`
+
+.scrollable[
+
+
+```r
+fold_id &lt;- sample(1:10, size = length(train_y), replace=TRUE)
+
+cv_lasso    &lt;- cv.glmnet(train_x, train_y, alpha = 1.0, foldid = fold_id) 
+*cv_elastic1 &lt;- cv.glmnet(train_x, train_y, alpha = 0.3, foldid = fold_id)
+*cv_elastic2 &lt;- cv.glmnet(train_x, train_y, alpha = 0.6, foldid = fold_id)
+cv_ridge    &lt;- cv.glmnet(train_x, train_y, alpha = 0.0, foldid = fold_id)
+```
+
+&lt;img src="03-Regularization_files/figure-html/unnamed-chunk-29-1.svg" style="display: block; margin: auto;" /&gt;
+
+]
+
+---
+
+## Elastic nets: tuning
+
+.scrollable[
+
+
+```r
+# tuning grid
+tuning_grid &lt;- tibble::tibble(
+  alpha     = seq(0, 1, by = .1),
+  mse_min  = NA,
+  mse_1se  = NA
+)
+
+for(i in seq_along(tuning_grid$alpha)) {
+  
+  # fit CV model for each alpha value
+  fit &lt;- cv.glmnet(train_x, train_y, alpha = tuning_grid$alpha[i], foldid = fold_id)
+  
+  # extract MSE and lambda values
+  tuning_grid$mse_min[i] &lt;- fit$cvm[fit$lambda == fit$lambda.min]
+  tuning_grid$mse_1se[i] &lt;- fit$cvm[fit$lambda == fit$lambda.1se]
+}
+
+tuning_grid %&gt;%
+  mutate(se = mse_1se - mse_min) %&gt;%
+  ggplot(aes(alpha, mse_min)) +
+  geom_line(size = 2) +
+  geom_ribbon(aes(ymax = mse_min + se, ymin = mse_min - se), alpha = .25) +
+  ggtitle("MSE ± one standard error")
+```
+
+&lt;img src="03-Regularization_files/figure-html/unnamed-chunk-30-1.svg" style="display: block; margin: auto;" /&gt;
+
+]
+
+
+---
+
+class: center, middle, inverse
+
+background-image: url(http://amsterdammakerfestival.nl/wp-content/uploads/2016/08/the-challenge.png)
+
+
+---
+
+## Your Turn!
+
+1. Apply an elastic net model to the ames data.
+
+2. Which value of `alpha` performs best?
+
+3. Can you identify the most influential features?
+
+---
+
+## Solution: Compare performance
+
+.scrollable[
+
+
+```r
+# reproducible CV splits
+fold_id &lt;- sample(1:10, size = length(ames_train_y), replace=TRUE)
+
+# tuning grid
+tuning_grid &lt;- tibble::tibble(
+  alpha      = seq(0, 1, by = .1),
+  mse_min   = NA,
+  mse_1se   = NA,
+  lambda_min = NA,
+  lambda_1se = NA
+)
+
+# modeling
+for(i in seq_along(tuning_grid$alpha)) {
+  fit &lt;- cv.glmnet(ames_train_x, ames_train_y, alpha = tuning_grid$alpha[i], foldid = fold_id)
+  tuning_grid$mse_min[i]   &lt;- fit$cvm[fit$lambda == fit$lambda.min]
+  tuning_grid$mse_1se[i]   &lt;- fit$cvm[fit$lambda == fit$lambda.1se]
+  tuning_grid$lambda_min[i] &lt;- fit$lambda.min
+  tuning_grid$lambda_1se[i] &lt;- fit$lambda.1se
+}
+
+# compare optimal MSEs
+tuning_grid %&gt;%
+  mutate(se = mse_1se - mse_min) %&gt;%
+  ggplot(aes(alpha, mse_min)) +
+  geom_line(size = 2) +
+  geom_ribbon(aes(ymax = mse_min + se, ymin = mse_min - se), alpha = .25) +
+  ggtitle("MSE ± one standard error")
+```
+
+&lt;img src="03-Regularization_files/figure-html/unnamed-chunk-31-1.svg" style="display: block; margin: auto;" /&gt;
+
+
+]
+
+---
+
+## Solution: Identify influential features
+
+.scrollable[
+
+
+```r
+# get the coefficients
+best_fit &lt;- glmnet(
+  x = ames_train_x,
+  y = ames_train_y,
+  alpha = 1,
+  lambda = subset(tuning_grid, alpha == 1)$lambda_min
+)
+
+best_fit %&gt;%
+  coef() %&gt;%
+  tidy() %&gt;%
+  filter(row != "(Intercept)") %&gt;%
+  ggplot(aes(value, reorder(row, value), color = value &gt;= 0)) +
+  geom_point(show.legend = FALSE)
+```
+
+&lt;img src="03-Regularization_files/figure-html/unnamed-chunk-32-1.svg" style="display: block; margin: auto;" /&gt;
+
+
+]
+
+---
+
+class: center, middle, inverse
+
+background-image: url(Images/prediction_icon.jpg)
+background-size: cover
+
+&lt;br&gt;&lt;br&gt;&lt;br&gt;&lt;br&gt;
+# Predicting
+
+
+---
+
+## Making predictions on new data
+
+* Use `predict` with best model and new data
+
+* Caveat: must supply `s` parameter with preferred `\(\lambda\)`
+
+
+```r
+# some best model
+cv_lasso   &lt;- cv.glmnet(ames_train_x, ames_train_y, alpha = 1.0)
+min(cv_lasso$cvm)
+```
+
+```
+## [1] 0.02101189
+```
+
+```r
+# predict
+pred &lt;- predict(cv_lasso, s = cv_lasso$lambda.min, ames_test_x)
+
+# re-transform predicted values
+pred_tran &lt;- exp(pred)
+caret::RMSE(pred_tran, ames_test$Sale_Price)
+```
+
+```
+## [1] 24740.36
+```
+
+
+
+---
+
+class: center, middle, inverse
+
+background-image: url(Images/alternative_pkg_icon.jpg)
+background-size: cover
+
+# Alternative Packages
+
+---
+
+## `caret`
+
+.scrollable[
+
+
+```r
+library(caret)
+
+train_control &lt;- trainControl(method = "cv", number = 10)
+
+caret_mod &lt;- train(
+  x = ames_train_x,
+  y = ames_train_y,
+  method = "glmnet",
+  preProc = c("center", "scale", "zv", "nzv"),
+  trControl = train_control,
+* tuneLength = 10
+)
+
+caret_mod
+```
+
+]
+
+
+---
+
+## `h2o`
+
+.full-width[.content-box-yellow[.bolder[.center[
+I only show the code but do not run due to the excess output that `h2o` kicks out!
+]]]]
+
+.scrollable[
+
+
+```r
+library(h2o)
+h2o.init()
+
+# convert data to h2o object
+ames_h2o &lt;- ames_train %&gt;%
+  mutate(Sale_Price_log = log(Sale_Price)) %&gt;%
+  as.h2o()
+
+# set the response column to Sale_Price_log
+response &lt;- "Sale_Price_log"
+
+# set the predictor names
+predictors &lt;- setdiff(colnames(ames_train), "Sale_Price")
+
+
+# try using the `alpha` parameter:
+# train your model, where you specify alpha
+ames_glm &lt;- h2o.glm(
+  x = predictors, 
+  y = response, 
+  training_frame = train,
+  nfolds = 10,
+  keep_cross_validation_predictions = TRUE,
+  alpha = .25
+  )
+
+# print the mse for the validation data
+print(h2o.rmse(ames_glm, xval = TRUE))
+
+# grid over `alpha`
+# select the values for `alpha` to grid over
+hyper_params &lt;- list(
+  alpha = seq(0, 1, by = .1),
+  lambda = seq(0.0001, 10, length.out = 10)
+  )
+
+# this example uses cartesian grid search because the search space is small
+# and we want to see the performance of all models. For a larger search space use
+# random grid search instead: {'strategy': "RandomDiscrete"}
+
+# build grid search with previously selected hyperparameters
+grid &lt;- h2o.grid(
+  x = predictors, 
+  y = response, 
+  training_frame = train, 
+  nfolds = 10,
+  keep_cross_validation_predictions = TRUE,
+  algorithm = "glm",
+  grid_id = "ames_grid", 
+  hyper_params = hyper_params,
+  search_criteria = list(strategy = "Cartesian")
+  )
+
+# Sort the grid models by mse
+sorted_grid &lt;- h2o.getGrid("ames_grid", sort_by = "mse", decreasing = FALSE)
+sorted_grid
+
+# grab top model id
+best_h2o_model &lt;- sorted_grid@model_ids[[1]]
+best_model &lt;- h2o.getModel(best_h2o_model)
+```
+
+
+]
+
+---
+
+class: center, middle, inverse
+
+background-image: url(Images/learn_more.jpg)
+background-size: cover
+
+# Learning More
+
+---
+
+## Additional Resources
+
+* Regularization has been extended to *many* other machine learning algorithms
+
+* Great resources to learn more (listed in order of complexity):
+
+&lt;img src="Images/additional_regularization_resources.png" width="1431" style="display: block; margin: auto;" /&gt;
+    </textarea>
+<script src="libs/remark-latest.min.js"></script>
+<script>var slideshow = remark.create({
+"highlightStyle": "github",
+"highlightLines": true,
+"countIncrementalSlides": false
+});
+if (window.HTMLWidgets) slideshow.on('afterShowSlide', function (slide) {
+  window.dispatchEvent(new Event('resize'));
+});
+(function() {
+  var d = document, s = d.createElement("style"), r = d.querySelector(".remark-slide-scaler");
+  if (!r) return;
+  s.type = "text/css"; s.innerHTML = "@page {size: " + r.style.width + " " + r.style.height +"; }";
+  d.head.appendChild(s);
+})();</script>
+
+<script type="text/x-mathjax-config">
+MathJax.Hub.Config({
+  tex2jax: {
+    skipTags: ['script', 'noscript', 'style', 'textarea', 'pre']
+  }
+});
+</script>
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+(function () {
+  var script = document.createElement('script');
+  script.type = 'text/javascript';
+  script.src  = 'https://cdn.bootcss.com/mathjax/2.7.1/MathJax.js?config=TeX-MML-AM_CHTML';
+  if (location.protocol !== 'file:' && /^https?:/.test(script.src))
+    script.src  = script.src.replace(/^https?:/, '');
+  document.getElementsByTagName('head')[0].appendChild(script);
+})();
+</script>
+  </body>
+</html>

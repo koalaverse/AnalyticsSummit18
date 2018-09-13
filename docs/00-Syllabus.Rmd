@@ -1,0 +1,34 @@
+---
+title: "Course Outline"
+output: html_notebook
+---
+
+## DAY 1
+
+Module       | Time      | Details
+-------------|-----------|------------------------------------------------------
+Introduction | 0900-0930 | General introduction and overview
+Fundamentals | 0930-1030 | Discuss the general machine learning process (sampling, tuning, performance assessment)
+Break        | 1030-1045 |
+Shrinkage    | 1045-1145 | Regularize regression (ridge, lasso, elastic nets)
+Lunch        | 1200-1300 |
+MARS         | 1300-1400 | Moving into non-linearity
+Deep learning | 1415-1515 |
+Break        | 1515-1530 |
+Kaggle       | 1530-1630 | Regression problem
+
+
+
+## DAY 2
+Module       | Time      | Details
+-------------|-----------|------------------------------------------------------
+Warm ups     | 0900-0930 | A quick review, coding warm-ups
+Naive Bayes  | 0930-1030 | 
+Break        | 1030-1045 |
+SVM          | 1045-1145 | 
+Lunch        | 1200-1300 |
+Random Forest | 1300-1400 |
+GBM          | 1400-1500 |
+Break        | 1500-1515 |
+Kaggle       | 1515-1615 | Classification problem
+Parting words | 1615-1630 |

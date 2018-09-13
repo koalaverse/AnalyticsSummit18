@@ -1,0 +1,1148 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Deep Learning</title>
+    <meta charset="utf-8">
+    <meta name="author" content="Bradley C. Boehmke  and  Brandon M. Greenwell" />
+    <link href="libs/remark-css/default.css" rel="stylesheet" />
+    <link href="libs/remark-css/hygge.css" rel="stylesheet" />
+    <link rel="stylesheet" href="scrollable.css" type="text/css" />
+  </head>
+  <body>
+    <textarea id="source">
+class: center, middle, inverse, title-slide
+
+# Deep Learning
+### Bradley C. Boehmke </br> and </br> Brandon M. Greenwell
+### 2018/05/12
+
+---
+
+
+class: center, middle, inverse
+
+background-image: url(https://mir-s3-cdn-cf.behance.net/project_modules/disp/b2ac1a19467255.562dae98a2b23.jpg)
+background-size: cover
+
+# Deep Learning
+
+???
+
+Image credit: [Behance](https://www.behance.net/gallery/19467255/Thinking-David-))
+
+
+
+
+---
+
+## Why deep learning?
+
+Neural networks originated in the computer science field to answer questions that normal statistical approaches were not designed to answer.
+
+&lt;img src="Images/digits.png" width="519" style="display: block; margin: auto;" /&gt;
+
+
+.full-width[.content-box-blue[.bolder[.center[
+We humans interpret the many features of each digit (i.e. angles, edges, thickness, circles). 🤔
+]]]]
+
+
+---
+
+## Why deep learning?
+
+In essence, neural networks perform the same task albeit in a far simpler manner than our brains
+
+&lt;img src="Images/digit_4.jpg" width="65%" height="65%" style="display: block; margin: auto;" /&gt;
+
+
+.full-width[.content-box-blue[.bolder[.center[
+But the computational demands were a barrier.  🛑
+]]]]
+
+
+
+---
+
+## Overcoming challenges
+
+Recent advancements have created new energy around neural networks:
+
+* advancements in computer hardware (off the shelf CPUs became faster and GPUs were created) made computation more practical,
+
+* growth in data collection made them more relevant,
+
+* advancements in the underlying algorithms made the depth (number of hidden layers) of neural nets less of a constraint
+
+&lt;br&gt;
+
+&lt;img src="Images/deep_nn2.png" width="1255" style="display: block; margin: auto;" /&gt;
+
+---
+
+## The result...
+
+Deeper, more complex neural networks
+
+.green[__Pros:__]
+
+* high-dimensional, unstructured feature-rich data
+
+* automates feature engineering
+
+* complex, non-linear relationships
+
+.red[__Cons:__]
+
+* computationally demanding
+
+* _as feature dimension space reduces, traditional machine learning approaches tend to perform just as well, if not better, and are more efficient_
+
+
+.full-width[.content-box-blue[.bolder[.center[
+⚠️ DNNs are not a panacea!
+]]]]
+
+
+
+---
+
+## Feedforward DNNs
+
+Multiple DNN models exist:
+
+* __convolutional neural networks__ (CNN or ConvNet) have wide applications in image and video recognition,
+
+* __recurrent neural networks__ (RNN) are used with speech recognition,
+
+* __long short-term memory neural networks__ (LTSM) are advancing automated robotics and machine translation.
+
+Fundamental to all these methods is the ___feedforward neural net___ (aka multilayer perceptron)
+
+&lt;img src="Images/mlp_network.png" width="381" style="display: block; margin: auto;" /&gt;
+
+
+---
+
+## Key components
+
+To build a feedforward DNN we need 4 key components:
+
+1. input data,
+
+2. a defined network architecture,
+
+3. a feedback mechanism to help our model learn,
+
+4. a model training approach.
+
+&lt;br&gt;
+
+&lt;img src="Images/ready.png" width="299" style="display: block; margin: auto;" /&gt;
+
+---
+
+class: center, middle, inverse
+
+background-image: url(Images/prerequisites.png)
+background-position: center
+background-size: contain
+
+---
+
+## Package requirement
+
+We'll use the CPU-based version of `keras` and `TensorFlow`
+
+Install with the following:
+
+
+```r
+install.packages("keras")
+keras::install_keras()
+
+# will require you to execute the following at a terminal
+$ sudo /usr/bin/easy_install pip
+$ sudo /usr/local/bin/pip install --upgrade virtualenv
+
+# if you get the above notification you will need to re-run
+keras::install_keras()
+```
+
+
+```r
+library(keras)
+```
+
+.full-width[.content-box-blue[.bolder[.center[
+See [keras.rstudio.com](keras.rstudio.com) for details.
+]]]]
+
+---
+
+## Data requirement
+
+.scrollable[
+
+1. Feedfoward DNNs require all feature inputs to be numeric. Consequently, we one-hot encode with `model.matrix`.
+2. Due to the data transformation process that DNNs perform, they are highly sensitive to the individual scale of the feature values. Consequently, we standardize our feature sets. Also note, that we are standardizing our test feature sets based on the mean and standard deviation of the training features to minimize data leakage.
+3. When one-hot encoding, some variable levels have little or no variance. We remove these variables.
+
+
+
+```r
+# one hot encode --&gt; we use model.matrix(...)[, -1] to discard the intercept
+data_onehot &lt;- model.matrix(~ ., AmesHousing::make_ames())[, -1] %&gt;% as.data.frame()
+
+# Create training (70%) and test (30%) sets for the AmesHousing::make_ames() data.
+# Use set.seed for reproducibility
+set.seed(123)
+split &lt;- rsample::initial_split(data_onehot, prop = .7, strata = "Sale_Price")
+train &lt;- rsample::training(split)
+test  &lt;- rsample::testing(split)
+
+# Create &amp; standardize feature sets
+# training features
+train_x &lt;- train %&gt;% dplyr::select(-Sale_Price)
+mean    &lt;- colMeans(train_x)
+std     &lt;- apply(train_x, 2, sd)
+train_x &lt;- scale(train_x, center = mean, scale = std)
+
+# testing features
+test_x &lt;- test %&gt;% dplyr::select(-Sale_Price)
+test_x &lt;- scale(test_x, center = mean, scale = std)
+
+# Create &amp; transform response sets
+train_y &lt;- log(train$Sale_Price)
+test_y  &lt;- log(test$Sale_Price)
+
+# zero variance variables (after one hot encoded) cause NaN so we need to remove
+zv &lt;- which(colSums(is.na(train_x)) &gt; 0, useNames = FALSE)
+train_x &lt;- train_x[, -zv]
+test_x  &lt;- test_x[, -zv]
+
+# check dimensions
+dim(train_x)
+## [1] 2054  299
+dim(test_x)
+## [1] 876 299
+```
+
+]
+
+---
+
+class: center, middle, inverse
+
+background-image: url(http://video.epfl.ch/EPFLTV//Images/Channel/LogoSAR.png)
+
+# Network Architecture
+
+???
+
+Image credit: [EPFLTV](http://video.epfl.ch/EPFLTV//Images/Channel/LogoSAR.png)
+
+---
+
+## Layers &amp; nodes
+
+Building blocks of your model and they decide how complex the network will be
+
+* Layers are considered dense (fully connected) where all the nodes in each successive layer are connected
+
+* More layers and nodes you add the more opportunities for new features to be learned (commonly referred to as the model’s capacity)
+
+* Beyond the input layer, which is just our predictor variables:
+  - hidden layers
+     - no well-defined rules to follow for #
+     - rectangular data `\(\rightarrow\)` 2-5 layers are sufficient
+     - number of hidden layers and nodes in your network will drive the computational burden of your model
+  - output layer
+     - driven by the type of modeling you are performing
+     - Regression `\(\rightarrow\)` 1 node
+     - Binary classification `\(\rightarrow\)` 1 node `\(\rightarrow\)` probability of success
+     - Multinomial `\(\rightarrow\)` `\(y_n\)` nodes `\(\rightarrow\)` probability of each class
+     
+---
+
+## Implementation
+
+`keras` uses a layering approach with `%&gt;%`
+
+* Two hidden layers
+  - `\(1^{st}\)`: 10 nodes
+  - `\(2^{nd}\)`: 5 nodes
+
+
+```r
+model &lt;- keras_model_sequential() %&gt;%
+  layer_dense(units = 10, input_shape = ncol(train_x)) %&gt;%  # hidden layer 1
+  layer_dense(units = 5) %&gt;%                                # hidden layer 2
+  layer_dense(units = 1)                                    # output layer
+```
+
+
+&lt;br&gt;&lt;br&gt;
+
+.full-width[.content-box-blue[.bolder[.center[
+Note: must tell first hidden layer how many features to expect with `input_shape`!
+]]]]
+
+
+---
+
+## Activation functions
+
+__Human body__
+
+* biologic neurons receive inputs from many adjacent neurons
+
+* when these inputs accumulate beyond a certain threshold the neuron is ___activated___ suggesting there is a signal
+
+__Neural nets__
+
+* we use activation functions to perform the same thing in neural nets
+
+&lt;img src="Images/perceptron_node.png" width="491" style="display: block; margin: auto;" /&gt;
+
+---
+
+## Activation functions
+
+Multiple activations to choose from:
+
+&lt;img src="Images/activation_functions2.png" width="60%" height="60%" style="display: block; margin: auto;" /&gt;
+
+
+.full-width[.content-box-blue[.bolder[.center[
+[https://en.wikipedia.org/wiki/Activation_function](https://en.wikipedia.org/wiki/Activation_function)
+]]]]
+
+---
+
+## Activation functions
+
+
+Rule of  👍:
+
+__Hidden layers__
+
+* Rectified linear unit (ReLU) most popular
+
+* Sigmoid
+
+* TanH
+
+__Output layers__
+
+* Regression: linear (identity)
+
+* Binary Classification: Sigmoid
+
+* Multinomial: Softmax
+
+---
+
+## Implementation
+
+We specify activation with...wait for it...`activation`
+
+
+```r
+model &lt;- keras_model_sequential() %&gt;%
+  layer_dense(units = 10, activation = "relu", input_shape = ncol(train_x)) %&gt;%
+  layer_dense(units = 5, activation = "relu") %&gt;%
+  layer_dense(units = 1)
+```
+
+---
+
+class: center, middle, inverse
+
+background-image: url(Images/sgd_icon.gif)
+background-position: center
+background-size: contain
+
+# Backpropagation
+
+---
+
+## Mini-batch stochastic gradient descent
+
+The primary ___learning___ mechanism in neural networks
+
+  Step 1: sample observations (*mini-batch*)
+
+  Step 2: assign weights and perform *forward pass*
+
+  Step 3: compute *loss function*
+
+  Step 4: work backwards through each layer, compute *partial derivatives*
+
+  Step 5: adjust weights a little in the opposite direction of the gradient (*learning rate*)
+
+  Step 6: grab another mini-batch, rinse and repeate until loss function is minimized
+
+&lt;br&gt;
+
+.full-width[.content-box-blue[.bolder[.center[
+There are many mini-batch SGD algorithms to choose from.
+]]]]
+
+
+---
+
+## Implementation
+
+To be able to perform backpropagation we need to add a `compile` layer to our model where we specify:
+
+* mini-batch SGD algorithm (i.e. `rmsprop` (default),  `adadelt`, `adam`)
+
+* loss metric (regression: MSE, MAE, MAPE; classification: binary/categorical crossentropy)
+
+* additional metrics to track
+
+
+```r
+model &lt;- keras_model_sequential() %&gt;%
+  layer_dense(units = 10, activation = "relu", input_shape = ncol(train_x)) %&gt;%
+  layer_dense(units = 5, activation = "relu") %&gt;%
+  layer_dense(units = 1) %&gt;%
+* compile(
+*   optimizer = "rmsprop",
+*   loss      = "mse",
+*   metrics   = c("mae","mape")
+* )
+```
+
+&lt;center&gt;
+&lt;bold&gt;
+&lt;font color="red"&gt;
+We're finally ready to train! 🏃 
+&lt;/font&gt;
+&lt;/bold&gt;
+&lt;/center&gt;
+
+---
+
+class: center, middle, inverse
+
+background-image: url(Images/training_icon.jpg)
+background-size: cover
+
+# Model Training
+
+---
+
+## Model Training
+
+To train a model, we use `fit`
+
+* `batch_size`: anywhere from 1-*n* `\(\rightarrow\)` typically 32, 64, 128, 256
+
+* `epochs`: 1 epoch equals *n* forward passes with specified batch size to go through all sample data
+
+* `validation_split`: data set aside for out-of-sample error estimate
+
+
+
+```r
+learn &lt;- model %&gt;% fit(
+  x = train_x,
+  y = train_y,
+  batch_size = 32,
+  epochs = 25,
+  validation_split = .2,
+  verbose = FALSE
+)
+```
+
+.full-width[.content-box-yellow[.bolder[.center[
+Let's put it all together! 
+]]]]
+
+
+
+---
+
+## Putting it all together
+
+.scrollable[
+
+
+```r
+model &lt;- keras_model_sequential() %&gt;%
+  
+  # network architecture
+  layer_dense(units = 10, activation = "relu", input_shape = ncol(train_x)) %&gt;%
+  layer_dense(units = 5, activation = "relu") %&gt;%
+  layer_dense(units = 1) %&gt;%
+  
+  # backpropagation
+  compile(
+    optimizer = "rmsprop",
+    loss = "mse",
+    metrics = c("mae", "mape")
+  )
+
+# train our model
+learn &lt;- model %&gt;% fit(
+  x = train_x,
+  y = train_y,
+  epochs = 25,
+  batch_size = 32,
+  validation_split = .2,
+  verbose = FALSE
+)
+
+learn
+## Trained on 1,643 samples, validated on 411 samples (batch_size=32, epochs=25)
+## Final epoch (plot to see history):
+##                               loss: 0.6108
+## val_mean_absolute_percentage_error: 7.819
+##            val_mean_absolute_error: 0.9355
+##     mean_absolute_percentage_error: 4.077
+##                           val_loss: 3.488
+##                mean_absolute_error: 0.4848
+
+plot(learn)
+```
+
+&lt;img src="Figures/05-Figures/train-1.svg" style="display: block; margin: auto;" /&gt;
+
+]
+
+---
+
+class: center, middle, inverse
+
+background-image: url(Images/tuning-your-guitar.jpg)
+background-size: cover
+
+# Tuning
+
+---
+
+## General tuning process
+
+* ___Many___ ways to tune a DNN
+
+* Typically, the tuning process follows these general steps; however, there is often a lot of iteration among these:
+
+   1. Adjust model capacity (layers &amp; nodes)
+   2. Increase epochs if you do not see a flatlined loss function
+   3. Add batch normalization
+   4. Add dropout
+   5. Add weight regularization
+   6. Adjust learning rate
+
+---
+
+## Adjust model capacity (layers &amp; nodes)
+
+.scrollable[
+
+Purposely overfit, then reduce layers/nodes until errors stabilize
+
+
+
+```r
+model &lt;- keras_model_sequential() %&gt;%
+  
+  # network architecture
+* layer_dense(units = 500, activation = "relu", input_shape = ncol(train_x)) %&gt;%
+* layer_dense(units = 250, activation = "relu") %&gt;%
+* layer_dense(units = 125, activation = "relu") %&gt;%
+  layer_dense(units = 1) %&gt;%
+  
+  # backpropagation
+  compile(
+    optimizer = "rmsprop",
+    loss = "mse",
+    metrics = c("mae", "mape")
+  )
+
+# train our model
+learn &lt;- model %&gt;% fit(
+  x = train_x,
+  y = train_y,
+  epochs = 25,
+  batch_size = 32,
+  validation_split = .2,
+  verbose = FALSE
+)
+
+plot(learn)
+```
+
+&lt;img src="Figures/05-Figures/overfit-1.svg" style="display: block; margin: auto;" /&gt;
+
+
+]
+
+---
+
+class: center, middle, inverse
+
+background-image: url(http://amsterdammakerfestival.nl/wp-content/uploads/2016/08/the-challenge.png)
+
+
+---
+
+## Your Turn!
+
+Reduce the layers and nodes until you find stable errors.
+
+---
+
+## Solution
+
+.scrollable[
+
+
+```r
+model &lt;- keras_model_sequential() %&gt;%
+  
+  # network architecture
+* layer_dense(units = 100, activation = "relu", input_shape = ncol(train_x)) %&gt;%
+* layer_dense(units = 50, activation = "relu") %&gt;%
+  layer_dense(units = 1) %&gt;%
+  
+  # backpropagation
+  compile(
+    optimizer = "rmsprop",
+    loss = "mse",
+    metrics = c("mae", "mape")
+  )
+
+# train our model
+learn &lt;- model %&gt;% fit(
+  x = train_x,
+  y = train_y,
+  epochs = 25,
+  batch_size = 32,
+  validation_split = .2,
+  verbose = FALSE
+)
+
+learn
+## Trained on 1,643 samples, validated on 411 samples (batch_size=32, epochs=25)
+## Final epoch (plot to see history):
+##                               loss: 0.1193
+## val_mean_absolute_percentage_error: 5.388
+##            val_mean_absolute_error: 0.6457
+##     mean_absolute_percentage_error: 2.266
+##                           val_loss: 1.171
+##                mean_absolute_error: 0.2714
+
+plot(learn)
+```
+
+&lt;img src="Figures/05-Figures/dnn_solution1-1.svg" style="display: block; margin: auto;" /&gt;
+
+]
+
+---
+
+## Adjust epochs
+
+.scrollable[
+
+* If you notice your loss function is still decreasing in the last epoch then you will want to increase the number of epochs. 
+
+* Alternatively, if your epochs flatline early then there is no reason to run so many epochs as you are just using extra computational energy with no gain. 
+
+* We can add a `callback` function inside of fit to help with this.
+
+
+```r
+# train our model
+learn &lt;- model %&gt;% fit(
+  x = train_x,
+  y = train_y,
+  epochs = 25,
+  batch_size = 32,
+  validation_split = .2,
+  verbose = FALSE,
+* callbacks = list(
+*   callback_early_stopping(patience = 2)
+* )
+)
+
+learn
+## Trained on 1,643 samples, validated on 411 samples (batch_size=32, epochs=4)
+## Final epoch (plot to see history):
+##                               loss: 0.1191
+## val_mean_absolute_percentage_error: 5.46
+##            val_mean_absolute_error: 0.654
+##     mean_absolute_percentage_error: 2.211
+##                           val_loss: 1.101
+##                mean_absolute_error: 0.2645
+
+plot(learn)
+```
+
+&lt;img src="Figures/05-Figures/epochs-1.svg" style="display: block; margin: auto;" /&gt;
+
+]
+
+---
+
+## Add batch normalization
+
+.scrollable[
+
+As we add more layers, it becomes important that we continue to renormalize to help with gradient propogation.
+
+
+```r
+model &lt;- keras_model_sequential() %&gt;%
+  
+  # network architecture
+  layer_dense(units = 100, activation = "relu", input_shape = ncol(train_x)) %&gt;%
+* layer_batch_normalization() %&gt;%
+  layer_dense(units = 50, activation = "relu") %&gt;%
+* layer_batch_normalization() %&gt;%
+  layer_dense(units = 1) %&gt;%
+  
+  # backpropagation
+  compile(
+    optimizer = "rmsprop",
+    loss = "mse",
+    metrics = c("mae", "mape")
+  )
+
+# train our model
+learn &lt;- model %&gt;% fit(
+  x = train_x,
+  y = train_y,
+  epochs = 25,
+  batch_size = 32,
+  validation_split = .2,
+  verbose = FALSE,
+  callbacks = list(  
+    callback_early_stopping(patience = 2) 
+  ) 
+)
+
+learn
+## Trained on 1,643 samples, validated on 411 samples (batch_size=32, epochs=22)
+## Final epoch (plot to see history):
+##                               loss: 0.06041
+## val_mean_absolute_percentage_error: 2.201
+##            val_mean_absolute_error: 0.2608
+##     mean_absolute_percentage_error: 1.561
+##                           val_loss: 0.1353
+##                mean_absolute_error: 0.1865
+
+plot(learn)
+```
+
+&lt;img src="Figures/05-Figures/batch_renorm-1.svg" style="display: block; margin: auto;" /&gt;
+
+]
+
+---
+
+## Add dropout
+
+.scrollable[
+
+* ___Dropout___ is one of the most effective and commonly used approaches to prevent overfitting in neural networks. 
+
+* Dropout randomly drops out (setting to zero) a number of output features in a layer during training. 
+
+* By randomly removing different nodes, we help prevent the model from fitting patterns to happenstance patterns (noise) that are not significant.
+
+
+```r
+model &lt;- keras_model_sequential() %&gt;%
+  
+  # network architecture
+  layer_dense(units = 100, activation = "relu", input_shape = ncol(train_x)) %&gt;%
+  layer_batch_normalization() %&gt;%
+* layer_dropout(rate = 0.2) %&gt;%
+  layer_dense(units = 50, activation = "relu") %&gt;%
+  layer_batch_normalization() %&gt;%
+* layer_dropout(rate = 0.2) %&gt;%
+  layer_dense(units = 1) %&gt;%
+  
+  # backpropagation
+  compile(
+    optimizer = "rmsprop",
+    loss = "mse",
+    metrics = c("mae", "mape")
+  )
+
+# train our model
+learn &lt;- model %&gt;% fit(
+  x = train_x,
+  y = train_y,
+  epochs = 25,
+  batch_size = 32,
+  validation_split = .2,
+  verbose = FALSE,
+  callbacks = list(  
+    callback_early_stopping(patience = 2) 
+  ) 
+)
+
+
+learn
+## Trained on 1,643 samples, validated on 411 samples (batch_size=32, epochs=25)
+## Final epoch (plot to see history):
+##                               loss: 1.609
+## val_mean_absolute_percentage_error: 2.367
+##            val_mean_absolute_error: 0.2822
+##     mean_absolute_percentage_error: 8.344
+##                           val_loss: 0.1481
+##                mean_absolute_error: 0.9999
+
+plot(learn)
+```
+
+&lt;img src="Figures/05-Figures/dropout-1.svg" style="display: block; margin: auto;" /&gt;
+
+
+]
+
+---
+
+## Add weight regularization
+
+.scrollable[
+
+We can add regularization just as we saw in earlier tutorial:
+
+* `\(L_2\)` *norm*: most common `\(\rightarrow\)` ridge `\(\rightarrow\)` called ___weight decay___ in the context of neural nets
+
+* `\(L_1\)` *norm*: lasso
+
+* Combination: elastic net
+
+
+```r
+model &lt;- keras_model_sequential() %&gt;%
+  
+  # network architecture
+  layer_dense(units = 100, activation = "relu", input_shape = ncol(train_x),
+*             kernel_regularizer = regularizer_l2(0.001)) %&gt;%
+  layer_batch_normalization() %&gt;%
+  layer_dense(units = 50, activation = "relu",
+*             kernel_regularizer = regularizer_l2(0.001)) %&gt;%
+  layer_batch_normalization() %&gt;%
+  layer_dense(units = 1) %&gt;%
+  
+  # backpropagation
+  compile(
+    optimizer = "rmsprop",
+    loss = "mse",
+    metrics = c("mae", "mape")
+  )
+
+# train our model
+learn &lt;- model %&gt;% fit(
+  x = train_x,
+  y = train_y,
+  epochs = 25,
+  batch_size = 32,
+  validation_split = .2,
+  verbose = FALSE,
+  callbacks = list(
+    callback_early_stopping(patience = 2)
+  )
+)
+
+learn
+## Trained on 1,643 samples, validated on 411 samples (batch_size=32, epochs=22)
+## Final epoch (plot to see history):
+##                               loss: 0.2211
+## val_mean_absolute_percentage_error: 2.559
+##            val_mean_absolute_error: 0.3068
+##     mean_absolute_percentage_error: 1.511
+##                           val_loss: 0.2986
+##                mean_absolute_error: 0.1806
+
+plot(learn)
+```
+
+&lt;img src="Figures/05-Figures/dnn_regularize-1.svg" style="display: block; margin: auto;" /&gt;
+
+
+]
+
+---
+
+## Adjust learning rate
+
+* The different optimizers (i.e. RMSProp, Adam, Adagrad) have different algorithmic approaches for deciding the learning rate.
+
+&lt;br&gt;
+
+&lt;img src="Images/minimums.jpg" width="468" style="display: block; margin: auto;" /&gt;
+
+---
+
+## Adjust learning rate
+
+.scrollable[
+
+* The different optimizers (i.e. RMSProp, Adam, Adagrad) have different algorithmic approaches for deciding the learning rate.
+
+* We can automatically adjust the learning rate by a factor of 2-10 once the validation loss has stopped improving.
+
+
+```r
+model &lt;- keras_model_sequential() %&gt;%
+  
+  # network architecture
+  layer_dense(units = 100, activation = "relu", input_shape = ncol(train_x),
+*             kernel_regularizer = regularizer_l2(0.001)) %&gt;%
+  layer_batch_normalization() %&gt;%
+  layer_dense(units = 50, activation = "relu",
+*             kernel_regularizer = regularizer_l2(0.001)) %&gt;%
+  layer_batch_normalization() %&gt;%
+  layer_dense(units = 1) %&gt;%
+  
+  # backpropagation
+  compile(
+*   optimizer = "adadelta",
+    loss = "mse",
+    metrics = c("mae", "mape")
+  )
+
+# train our model
+learn &lt;- model %&gt;% fit(
+  x = train_x,
+  y = train_y,
+  epochs = 25,
+  batch_size = 32,
+  validation_split = .2,
+  verbose = FALSE,
+  callbacks = list(
+    callback_early_stopping(patience = 2),
+*   callback_reduce_lr_on_plateau()
+  )
+)
+
+learn
+## Trained on 1,643 samples, validated on 411 samples (batch_size=32, epochs=25)
+## Final epoch (plot to see history):
+##                               loss: 0.1876
+##                                 lr: 1
+##                mean_absolute_error: 0.1388
+##            val_mean_absolute_error: 0.2819
+##     mean_absolute_percentage_error: 1.162
+##                           val_loss: 0.2799
+## val_mean_absolute_percentage_error: 2.36
+
+plot(learn)
+```
+
+&lt;img src="Figures/05-Figures/adjust_learning-1.svg" style="display: block; margin: auto;" /&gt;
+
+
+]
+
+---
+
+
+class: center, middle, inverse
+
+background-image: url(http://amsterdammakerfestival.nl/wp-content/uploads/2016/08/the-challenge.png)
+
+---
+
+## Your Turn!
+
+Adjust the tuning parameters and see if you can further reduce the validation loss metric
+
+* Adjust layers/nodes
+
+* Increase epochs if you do not see a flatlined loss function
+
+* Add batch normalization
+
+* Add dropout
+
+* Add weight regularization
+
+* Adjust learning rate
+
+---
+
+## Solution
+
+.scrollable[
+
+
+```r
+final_model &lt;- keras_model_sequential() %&gt;%
+  
+  # network architecture
+  layer_dense(units = 250, activation = "relu", input_shape = ncol(train_x)) %&gt;%
+  layer_batch_normalization() %&gt;%
+  layer_dense(units = 125, activation = "relu", input_shape = ncol(train_x)) %&gt;%
+  layer_batch_normalization() %&gt;%
+  layer_dense(units = 50, activation = "relu") %&gt;%
+  layer_batch_normalization() %&gt;%
+  layer_dense(units = 1) %&gt;%
+  
+  # backpropagation
+  compile(
+    optimizer = "rmsprop",
+    loss = "mse",
+    metrics = c("mae", "mape")
+  )
+
+# train our model
+final_results &lt;- final_model %&gt;% fit(
+  x = train_x,
+  y = train_y,
+  epochs = 25,
+  batch_size = 32,
+  validation_split = .2,
+  verbose = FALSE,
+  callbacks = list(  
+    callback_early_stopping(patience = 2),
+    callback_reduce_lr_on_plateau() 
+  ) 
+)
+
+final_results
+## Trained on 1,643 samples, validated on 411 samples (batch_size=32, epochs=16)
+## Final epoch (plot to see history):
+##                               loss: 0.03791
+##                                 lr: 0.001
+##                mean_absolute_error: 0.1523
+##            val_mean_absolute_error: 0.2472
+##     mean_absolute_percentage_error: 1.273
+##                           val_loss: 0.09164
+## val_mean_absolute_percentage_error: 2.064
+
+plot(final_results)
+```
+
+&lt;img src="Figures/05-Figures/final_dnn_tuning-1.svg" style="display: block; margin: auto;" /&gt;
+
+]
+
+---
+
+class: center, middle, inverse
+
+background-image: url(Images/prediction_icon.jpg)
+background-size: cover
+
+&lt;br&gt;&lt;br&gt;&lt;br&gt;&lt;br&gt;
+# Predicting
+
+---
+
+## Evaluate new data set
+
+We can `evaluate` on our test data
+
+
+```r
+(results &lt;- final_model %&gt;% evaluate(test_x, test_y))
+## $loss
+## [1] 0.08834792
+## 
+## $mean_absolute_error
+## [1] 0.2478597
+## 
+## $mean_absolute_percentage_error
+## [1] 2.068246
+```
+
+&lt;br&gt;
+
+.full-width[.content-box-yellow[.bolder[.center[
+So, how do we interpret these results? 😕 
+]]]]
+
+
+---
+
+## Predicting on new data
+
+
+
+```r
+final_model %&gt;% 
+  predict(test_x) %&gt;% 
+  broom::tidy() %&gt;% 
+  dplyr::mutate(
+    truth = test_y, 
+    pred_tran = exp(x), 
+    truth_tran = exp(truth)
+    ) %&gt;%
+   yardstick::rmse(truth_tran, pred_tran)
+## [1] 61789.22
+```
+
+* On average, our estimates are about $62K off from the actual sales price.
+
+* Considering the mean sales price is $180K, this is a sizeable error.
+
+
+
+
+---
+
+class: center, middle, inverse
+
+background-image: url(Images/learn_more.jpg)
+background-size: cover
+
+# Learning More
+
+---
+
+## Learning resources
+
+* Great resources to learn more:
+
+&lt;img src="Images/deep_learning_resources.png" width="1596" style="display: block; margin: auto;" /&gt;
+
+---
+
+&lt;img src="Images/what_a_day.png" width="531" style="display: block; margin: auto;" /&gt;
+    </textarea>
+<script src="libs/remark-latest.min.js"></script>
+<script>var slideshow = remark.create({
+"highlightStyle": "github",
+"highlightLines": true,
+"countIncrementalSlides": false
+});
+if (window.HTMLWidgets) slideshow.on('afterShowSlide', function (slide) {
+  window.dispatchEvent(new Event('resize'));
+});
+(function() {
+  var d = document, s = d.createElement("style"), r = d.querySelector(".remark-slide-scaler");
+  if (!r) return;
+  s.type = "text/css"; s.innerHTML = "@page {size: " + r.style.width + " " + r.style.height +"; }";
+  d.head.appendChild(s);
+})();</script>
+
+<script type="text/x-mathjax-config">
+MathJax.Hub.Config({
+  tex2jax: {
+    skipTags: ['script', 'noscript', 'style', 'textarea', 'pre']
+  }
+});
+</script>
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+(function () {
+  var script = document.createElement('script');
+  script.type = 'text/javascript';
+  script.src  = 'https://cdn.bootcss.com/mathjax/2.7.1/MathJax.js?config=TeX-MML-AM_CHTML';
+  if (location.protocol !== 'file:' && /^https?:/.test(script.src))
+    script.src  = script.src.replace(/^https?:/, '');
+  document.getElementsByTagName('head')[0].appendChild(script);
+})();
+</script>
+  </body>
+</html>

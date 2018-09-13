@@ -1,0 +1,1292 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Multivariate Adaptive Regression Splines</title>
+    <meta charset="utf-8">
+    <meta name="author" content="Bradley C. Boehmke  and  Brandon M. Greenwell" />
+    <meta name="date" content="2018-05-12" />
+    <link href="libs/remark-css/default.css" rel="stylesheet" />
+    <link href="libs/remark-css/hygge.css" rel="stylesheet" />
+    <script src="libs/htmlwidgets/htmlwidgets.js"></script>
+    <script src="libs/plotly-binding/plotly.js"></script>
+    <script src="libs/typedarray/typedarray.min.js"></script>
+    <script src="libs/jquery/jquery.min.js"></script>
+    <link href="libs/crosstalk/css/crosstalk.css" rel="stylesheet" />
+    <script src="libs/crosstalk/js/crosstalk.min.js"></script>
+    <link href="libs/plotlyjs/plotly-htmlwidgets.css" rel="stylesheet" />
+    <script src="libs/plotlyjs/plotly-latest.min.js"></script>
+    <link rel="stylesheet" href="scrollable.css" type="text/css" />
+  </head>
+  <body>
+    <textarea id="source">
+class: center, middle, inverse, title-slide
+
+# Multivariate Adaptive Regression Splines
+### Bradley C. Boehmke </br> and </br> Brandon M. Greenwell
+### May 12, 2018
+
+---
+
+class: center, middle, inverse
+
+background-image: url(https://upload.wikimedia.org/wikipedia/commons/5/56/Mars_Valles_Marineris.jpeg)
+background-position: center
+background-size: contain
+
+# Introduction
+
+???
+
+Image credit: [Wikimedia Commons](https://commons.wikimedia.org/wiki/File:Sharingan_triple.svg)
+
+
+
+
+---
+
+## Linear basis expansions
+
+.large[
+
+`$$f_\theta\left(X\right) = \sum_{m = 1}^M \theta_m b_m\left(X\right) \\= \theta_1 b_1\left(X\right) + \theta_2 b_2\left(X\right) + \dots + \theta_M b_M\left(X\right)$$`
+
+]
+
+--
+
+.large[
+
+* .magenta[Linear regression:] `\(b_m\left(X\right) = X_m, \quad m = 1, 2, \dots, p\)`
+
+* .magenta[Single-layer feed-forward neural network:] `$$b_m\left(X\right) = \frac{1}{1 + \exp\left(-X^\top \beta_k\right)}$$`
+
+* .magenta[CART:] `\(b_m\left(X\right) = I\left(X_m \in R_m\right)\)`
+
+]
+
+
+---
+
+## Multiple linear regression
+
+.large[
+
+`$$f\left(X\right) = \beta_0 + \beta_1 X_1 + \dots + \beta_p X_p$$`
+
+]
+
+.pull-left[
+
+.large[.green[Advantages]]
+
+* Accurate if model is correct
+
+* Interpretable for small `\(p\)`
+
+* .green[Global] parametric modelling
+
+* Quick computation
+
+* Can work well even with small data sets!
+
+* Statistical inference 😎
+
+]
+
+.pull-right[
+
+.large[.red[Disadvantages:]]
+
+* Inaccurate if model is incorrect
+
+* Less interpretable for large `\(p\)`
+
+* Global .red[parametric] modelling
+
+* Limited flexibility
+
+* Often need to compare multiple competing models
+
+* Model assumptions need to be carefully assessed
+
+* Blows up when `\(p &gt; N\)` 💣
+
+]
+
+
+---
+class: center, middle
+
+.larger[
+
+Are regression equations really that interpretable?
+
+]
+
+&lt;img src="Images/gaga.png" width="50%" style="display: block; margin: auto;" /&gt;
+
+
+---
+
+## MARS 🌏
+
+.large[
+
+`$$f\left(X\right) = \beta_0 + \beta_1 h_1\left(X\right) + \dots + \beta_m h_m\left(X\right)$$`
+
+]
+
+* .large[.magenta[Flexible] regression modeling of .magenta[high dimensional data]]
+
+.pull-left[
+
+* .large[Automatically handles:]
+
+  - Variable selection ✅
+
+  - Nonlinear relationships ✅
+    
+  - Variable interactions ✅
+    
+  - Variable importance ✅
+
+]
+
+.pull-right[
+
+&lt;img src="Figures/04-Figures/04-boston-2d-pdp-1.svg" width="100%" style="display: block; margin: auto;" /&gt;
+
+]
+
+
+---
+
+## MARS basis functions
+
+.large[
+
+* MARS uses expansions in .red[*piecewise linear basis functions*] of the form
+
+`$$\left(x - t\right)_+ = \begin{cases} x - t, &amp; \quad x &gt; t\\ 0, &amp; \quad \text{otherwise} \end{cases}$$`
+
+.center[and it's mirror]
+
+`$$\left(t - x\right)_+ = \begin{cases} t - x, &amp; \quad x &lt; t\\ 0, &amp; \quad \text{otherwise} \end{cases}$$`
+* These functions are piecewise linear, with a .red[*knot*] at the value of *t* (i.e., they look like hockey crossing sticks 🏒)
+
+]
+
+
+---
+class: center, middle
+
+&lt;img src="Figures/04-Figures/04-basis-pair-1.svg" width="100%" style="display: block; margin: auto;" /&gt;
+
+
+---
+class: center, middle
+
+&lt;img src="Figures/04-Figures/04-basis-pair-example-1.svg" width="100%" style="display: block; margin: auto;" /&gt;
+
+
+---
+
+## MARS basis function pool
+
+.large[
+
+* A basis function pair is constructed for each feature `\(X_j\)`, with knots at each unique value `\(x_{ij}\)`
+
+* In total, there are `\(2Np\)` possible piecewise linear basis functions available for inclusion in the model
+
+`$$C = \left\{\left(X_j - x_{ij}\right)_+, \left(x_{ij} - X_j\right)_+\right\}\\i = 1, \dots, N\\j = 1, \dots, p$$`
+
+* The basis functions used in MARS are elements of *C* (.red[main effects]), or built up from products thereof (.red[interactions])!
+
+]
+
+
+---
+
+## The basic idea
+
+.large[
+
+* MARS builds a model in two steps:
+
+  - A .darkorange[*forward pass*] where pairs of basis functions (from `\(C\)`) are added in a greedy fashion (i.e., [forward selection](https://en.wikipedia.org/wiki/Stepwise_regression))
+    
+  - A .darkorange[*backward pass*] where the least important terms are dropped from the model one at a time (i.e., [backward elimination](https://en.wikipedia.org/wiki/Stepwise_regression))
+    
+* In the end, .red[an ordinary linear model is fit using *least squares* to the selected basis functions]
+
+.center[however...]
+
+]
+
+
+---
+class: center, middle, inverse
+
+background-image: url(Images/mars-pvalues.jpg)
+background-position: center
+background-size: contain
+
+???
+
+Image credit: [imgflip](https://imgflip.com/)
+
+
+---
+class: center, middle
+
+# Why?
+
+
+---
+class: center, middle
+
+.large[
+
+Traditional stepwise procedures are often applied incorrectly!!
+
+]
+
+&lt;img src="Images/standard-errors.jpg" width="70%" style="display: block; margin: auto;" /&gt;
+
+
+---
+
+## MARS: forward pass
+
+.large[
+
+* Analagous to [*forward selection*](https://en.wikipedia.org/wiki/Stepwise_regression)
+
+* Start with a simple intercept only model: `\(f\left(X\right) = \beta_0 = \bar{y}\)`
+
+* Search for variable + knot combination that gives the greatest improvement to the current model
+
+   - This requires trying all (mirror) pairs of basis functions
+   
+   - Improvement is measured using RMSE
+   
+   - Continue until largest model is reached (.darkorange[tuning parameter])
+   
+]
+
+
+---
+class: center, middle, inverse
+
+&lt;img src="Images/mars-basis-pool.png" width="75%" style="display: block; margin: auto;" /&gt;
+
+???
+
+Image credit: [The Elements of Statistical Learning (Figure 9.10)](https://web.stanford.edu/~hastie/ElemStatLearn/)
+
+
+---
+
+## MARS: forward pass
+
+&lt;img src="Figures/04-Figures/04-splines-1-1.svg" width="60%" style="display: block; margin: auto;" /&gt;
+
+
+---
+
+## MARS: forward pass
+
+&lt;img src="Figures/04-Figures/04-splines-2-1.svg" width="60%" style="display: block; margin: auto;" /&gt;
+
+
+---
+
+## MARS: forward pass
+
+&lt;img src="Figures/04-Figures/04-splines-3-1.svg" width="60%" style="display: block; margin: auto;" /&gt;
+
+
+---
+
+## MARS: forward pass
+
+&lt;img src="Figures/04-Figures/04-splines-4-1.svg" width="60%" style="display: block; margin: auto;" /&gt;
+
+
+---
+
+## MARS: forward pass
+
+&lt;img src="Figures/04-Figures/04-splines-5-1.svg" width="60%" style="display: block; margin: auto;" /&gt;
+
+
+---
+
+## MARS: forward pass
+
+&lt;img src="Figures/04-Figures/04-splines-6-1.svg" width="60%" style="display: block; margin: auto;" /&gt;
+
+
+---
+class: center, middle, inverse
+
+background-image: url(Images/another-one.jpg)
+
+
+---
+
+## MARS: forward pass
+
+&lt;img src="Figures/04-Figures/04-splines-7-1.svg" width="60%" style="display: block; margin: auto;" /&gt;
+
+
+---
+class: center, middle
+
+.huger[Let's do it manually!]
+
+&lt;img src="Images/hell-ya.png" width="50%" style="display: block; margin: auto;" /&gt;
+
+
+---
+
+## MARS: backward pass
+
+.large[
+
+* Analagous to [*backward elimination*](https://en.wikipedia.org/wiki/Stepwise_regression)
+
+* After the maximimal model is obtained from the forward pass, switch to backward elimination
+
+  - Remove basis functions .red[one at a time] (whichever one results in the smallest increase in RMSE)
+    
+  - MARS uses .darkorange[*generalized cross-validation*] (GCV) to suggest when to stop removing terms
+  
+  - This can be overridden by the user during training (e.g., *k*-fold cross-validation can be used instead)
+
+]
+
+
+---
+
+## Final (pruned) MARS model
+
+&lt;img src="Figures/04-Figures/04-splines-8-1.svg" width="60%" style="display: block; margin: auto;" /&gt;
+
+
+---
+
+## Generalized cross-validation
+
+* .medium[GCV is an approximate form of .magenta[*leave-one-out cross-validation*] that]
+
+  - .medium[Allows for .red[computationally efficient] model selection]
+    
+  - .medium[Provides more .red[honest model performance metrics] (e.g., *R*-squared for regression)]
+    
+  - .medium[Provides results that are consistent with ordinary `\(k\)`-fold cross-validation]
+
+* .medium[When MARS selects terms to go into the model (forward pass) or removes terms (backward pass), the selection is typically made using the GCV results]
+
+* .medium[For example, when MARS removes a term during the backward pass, it removes the term that gives the smallest increase in GCV error]
+
+
+---
+
+## Variable importance
+
+.large[
+
+* MARS can construct an internal measure of variable importance:
+
+  - Calculate the decrease in RMSE for each subset relative to the previous subset during the backward pass
+
+  - For each variable, sum these decreases over all subsets that include the variable
+
+  - For ease of interpretation, the summed decreases are scaled so the largest is 100
+
+]
+
+
+---
+
+## MARS vs. PPR and NNs
+
+.scrollable[
+
+.pull-left[
+
+* PPR and NNs are .red[*universal approximators*]; however, this generality comes at a price
+
+    - More difficult to interpret
+    
+    - Longer training times 
+    
+    - Model tuning is an art
+    
+* MARS offers a nice compromise!
+
+    - Competitive predictive performance
+
+    - Easier to interpret
+    
+    - Faster training times
+    
+    - Incredibly easy to tune
+    
+    - **Much easier to productionize!!**
+    
+    - Can naturally handle many types of response variables (not just Gaussian)
+
+]
+
+.pull-right[
+
+&lt;img src="Images/waiting.jpg" width="655" style="display: block; margin: auto;" /&gt;
+
+]
+
+]
+
+???
+
+Image credit: [imgflip](https://imgflip.com/meme/Waiting-Skeleton)
+
+
+---
+class: center, middle
+
+background-image: url(Images/esl-tab.png)
+
+???
+
+Image credit: [The Elements of Statistical Learning (Figure 10.1)](https://web.stanford.edu/~hastie/ElemStatLearn/)
+
+
+---
+class: center, middle, inverse
+
+# Fitting MARS models in R
+
+
+---
+
+## R packages
+
+.pull-left[
+
+## [`mda`](https://cran.r-project.org/package=mda)
+
+* **m**ixture **d**iscriminant **a**nalysis
+
+* Lightweight function `mars()`
+    
+* Gives quite similar results to Friedman's original FORTRAN program
+
+* No formula method
+
+]
+
+.pull-right[
+
+## [`earth`](http://www.milbo.users.sonic.net/earth/) 🌎
+
+* **e**nhanced **a**daptive **r**egression **t**hrough **h**inges
+
+* Derived from `mda::mars()`
+    
+* Support for GLMs (e.g., logistic regression)
+    
+* More bells and whistles than `mda::mars()`; for example,
+
+    - Variable importance scores
+    
+    - Support for `\(k\)`-fold cross-validation)
+    
+]
+
+
+---
+class: center, middle
+
+&lt;div class="figure" style="text-align: center"&gt;
+&lt;img src="Images/earth-algorithm.png" alt="Source: earth package vignette by Stephen Milborrow." width="100%" /&gt;
+&lt;p class="caption"&gt;Source: earth package vignette by Stephen Milborrow.&lt;/p&gt;
+&lt;/div&gt;
+
+
+---
+
+## Boston housing example
+
+
+```r
+# Install required packages
+install.packages("earth")
+```
+
+
+```r
+# Modelling
+library(earth)    # for fitting MARS models
+
+# Visualization and model insights
+library(ggplot2)  # for autoplot() function
+library(pdp)      # for partial dependence plots
+library(vip)      # for variable importance plots
+
+# Boston housing data
+data(boston, package = "pdp")
+```
+
+
+---
+
+
+```r
+pairs(boston[c("cmedv", "lstat", "rm", "age", "lon", "lat")],
+      col = adjustcolor("purple2", alpha.f = 0.5))
+```
+
+&lt;img src="Figures/04-Figures/boston-pairs-1.svg" width="70%" style="display: block; margin: auto;" /&gt;
+
+
+---
+class: center, middle 
+
+.larger[Harrison and Rubinfeld's original housing value equation:]
+
+&lt;/br&gt;
+
+&lt;img src="Images/boston-eqn.png" width="100%" style="display: block; margin: auto;" /&gt;
+
+
+---
+
+## Boston housing example
+
+.scrollable[
+
+
+```r
+# Fit a second-degree MARS model
+boston_mars &lt;- earth(
+* cmedv ~ .,
+  data = boston,
+* degree = 2  # tuning parameter
+)
+
+# Print model summary
+print(boston_mars)
+```
+
+```
+## Selected 22 of 29 terms, and 11 of 15 predictors
+## Termination condition: Reached nk 31
+## Importance: rm, lstat, nox, tax, dis, ptratio, b, crim, lon, age, lat, ...
+## Number of terms at each degree of interaction: 1 8 13
+## GCV 7.48941    RSS 3030.639    GRSq 0.9113462    RSq 0.928821
+```
+
+]
+
+
+---
+
+## Boston housing example
+
+.scrollable[
+
+
+```r
+# Print detailed model summary
+summary(boston_mars)
+```
+
+```
+## Call: earth(formula=cmedv~., data=boston, degree=2)
+## 
+##                               coefficients
+## (Intercept)                       28.39443
+## h(42.2248-lat)                    -7.97297
+## h(crim-4.42228)                   -0.11552
+## h(rm-6.431)                        9.56634
+## h(age-18.5)                       -0.07757
+## h(1.3567-dis)                    944.93708
+## h(dis-1.3567)                     -0.65441
+## h(lstat-6.12)                     -0.79636
+## h(lstat-22.11)                     0.60433
+## h(1.3567-dis) * b                 -2.36250
+## h(-70.965-lon) * h(age-18.5)       0.37275
+## h(lon- -70.965) * h(age-18.5)      1.37540
+## h(4.42228-crim) * h(tax-224)      -0.00153
+## h(4.42228-crim) * h(224-tax)       0.01879
+## h(nox-0.624) * h(rm-6.431)       -87.60384
+## h(0.713-nox) * h(lstat-6.12)       2.02644
+## h(nox-0.713) * h(lstat-6.12)       0.98496
+## h(6.431-rm) * h(dis-1.8209)       -0.59505
+## h(rm-6.431) * h(ptratio-18.6)     -2.50835
+## h(rm-6.431) * h(18.6-ptratio)      0.74292
+## h(305-tax) * h(6.12-lstat)         0.01943
+## h(tax-305) * h(6.12-lstat)         0.02203
+## 
+## Selected 22 of 29 terms, and 11 of 15 predictors
+## Termination condition: Reached nk 31
+## Importance: rm, lstat, nox, tax, dis, ptratio, b, crim, lon, age, lat, ...
+## Number of terms at each degree of interaction: 1 8 13
+## GCV 7.48941    RSS 3030.639    GRSq 0.9113462    RSq 0.928821
+```
+
+]
+
+
+---
+
+## Boston housing example
+
+
+```r
+# Plot model summary
+plot(boston_mars)
+```
+
+&lt;img src="Figures/04-Figures/04-mars-boston-plot-1.svg" width="50%" style="display: block; margin: auto;" /&gt;
+
+
+---
+
+## Boston housing example
+
+.pull-left[
+
+Variable importance for MARS models based on GCV results:
+
+
+```r
+# Variable importance plot
+vip(
+  boston_mars, 
+* num_features = 15
+)
+```
+
+]
+
+.pull-right[
+
+&lt;img src="Figures/04-Figures/04-mars-boston-vip-plot-1.svg" style="display: block; margin: auto;" /&gt;
+
+]
+
+
+---
+
+## Boston housing example
+
+
+```r
+# Partial dependence of cmedv on rm
+p1 &lt;- boston_mars %&gt;%
+  partial(pred.var = "rm") %&gt;%
+  autoplot(color = "red2", size = 1) +
+  geom_point(data = boston, aes(x = rm, y = cmedv), alpha = 0.1) +
+  theme_light()
+
+# Partial dependence of cmedv on lstat
+p2 &lt;- boston_mars %&gt;%
+  partial(pred.var = "lstat") %&gt;%
+  autoplot(color = "red2", size = 1) +
+  geom_point(data = boston, aes(x = lstat, y = cmedv), alpha = 0.1) +
+  theme_light()
+
+# Partial dependence of cmedv on rm and lstat
+p3 &lt;- boston_mars %&gt;%
+* partial(pred.var = c("rm", "lstat"), chull = TRUE) %&gt;%
+  autoplot() +
+  theme_light()
+
+# Display plots side-by-side
+grid.arrange(p1, p2, p3, ncol = 3)
+```
+
+
+---
+
+class: center, middle
+
+&lt;img src="Figures/04-Figures/04-mars-boston-pdp-plot-1.svg" width="100%" style="display: block; margin: auto;" /&gt;
+
+
+---
+class: center, middle, inverse
+
+background-image: url(Images/your-turn.jpg)
+background-position: center
+background-size: contain
+
+???
+
+Image credit: [imgflip](https://imgflip.com/)
+
+
+---
+class: middle
+
+.large[
+
+Refit the same model to the Boston housing data using .red[5-fold cross-validation], rather than the standard GCV statistic
+
+(**Hint:** specify `pmethod = "cv"` and `nfold = 5` in the call to `earth()`)
+
+  1. Do the results seem to differ much?
+
+  2. Do the residual plots indicate any serious problems?
+  
+  3. Construct a PDP for the top predictor
+
+]
+
+
+---
+class: middle
+
+.scrollable[
+
+
+```r
+# Fit a second-degree MARS model to the Boston housing data using 
+# (repeated) 5-fold cross-validation
+*set.seed(1419)  # for reproducibiity
+boston_mars_cv &lt;- earth(
+  cmedv ~ ., 
+  data = boston, 
+  degree = 2,
+* pmethod = "cv",
+* nfold = 5,
+* ncross = 3
+)
+```
+
+]
+
+
+---
+class: middle 
+
+.scrollable[
+
+
+```r
+# Print detailed model summary
+summary(boston_mars_cv)
+```
+
+```
+## Call: earth(formula=cmedv~., data=boston, pmethod="cv", degree=2, nfold=5,
+##             ncross=3)
+## 
+##                               coefficients
+## (Intercept)                       28.82020
+## h(42.2248-lat)                   -16.77299
+## h(lat-42.2248)                   -13.67222
+## h(crim-4.42228)                   -0.11527
+## h(rm-6.431)                        9.53413
+## h(age-18.5)                       -0.07501
+## h(1.3567-dis)                    933.52245
+## h(dis-1.3567)                     -0.53916
+## h(lstat-6.12)                     -0.80769
+## h(lstat-22.11)                     0.60531
+## h(1.3567-dis) * b                 -2.33319
+## h(-70.965-lon) * h(age-18.5)       0.32093
+## h(lon- -70.965) * h(age-18.5)      1.37659
+## h(4.42228-crim) * h(tax-224)      -0.00165
+## h(4.42228-crim) * h(224-tax)       0.01782
+## h(nox-0.624) * h(rm-6.431)       -82.50784
+## h(0.713-nox) * h(lstat-6.12)       2.05848
+## h(nox-0.713) * h(lstat-6.12)       0.98602
+## h(6.431-rm) * h(dis-1.8209)       -0.54229
+## h(rm-6.431) * h(ptratio-18.6)     -2.77657
+## h(rm-6.431) * h(18.6-ptratio)      0.71330
+## h(305-tax) * h(6.12-lstat)         0.01971
+## h(tax-305) * h(6.12-lstat)         0.02184
+## 
+## Selected 23 of 29 terms, and 11 of 15 predictors using pmethod="cv"
+## Termination condition: Reached nk 31
+## Importance: rm, lstat, nox, tax, dis, ptratio, b, crim, lon, age, lat, ...
+## Number of terms at each degree of interaction: 1 9 13
+## GRSq 0.9111458  RSq 0.9294462  mean.oof.RSq 0.8473 (sd 0.056)
+## 
+## pmethod="backward" would have selected:
+##     22 terms 11 preds,  GRSq 0.9113462  RSq 0.928821  mean.oof.RSq 0.8463852
+```
+
+]
+
+
+---
+class: middle 
+
+.scrollable[
+
+
+```r
+# Residual plots, etc.
+plot(boston_mars_cv)
+```
+
+&lt;img src="Figures/04-Figures/04-your-turn-01-solution-03-1.svg" style="display: block; margin: auto;" /&gt;
+
+]
+
+
+---
+class: middle 
+
+.scrollable[
+
+.pull-left[
+
+
+```r
+# Variable importance plot
+vi(boston_mars_cv)
+```
+
+```
+## # A tibble: 15 x 2
+##    Variable Importance
+##    &lt;chr&gt;         &lt;dbl&gt;
+##  1 rm           100.  
+##  2 lstat         64.7 
+##  3 nox           44.0 
+##  4 tax           39.2 
+##  5 dis           33.6 
+##  6 ptratio       25.6 
+##  7 b             23.6 
+##  8 crim          19.6 
+##  9 lon           14.7 
+## 10 age           14.7 
+## 11 zn             0.  
+## 12 indus          0.  
+## 13 chas1          0.  
+## 14 rad            0.  
+## 15 lat           -1.31
+```
+
+]
+
+.pull-right[
+
+
+```r
+# Partial dependence plot
+partial(boston_mars_cv, 
+  pred.var = "rm", 
+* plot = TRUE, rug = TRUE
+)
+```
+
+&lt;img src="Figures/04-Figures/04-your-turn-01-solution-05-1.svg" width="80%" style="display: block; margin: auto;" /&gt;
+
+]
+
+]
+
+
+---
+class: center, middle, inverse
+
+background-image: url(Images/tuning.jpg)
+
+# Model tuning
+
+???
+
+Image credit: [imgflip](http://www.learntoplaymusic.com/blog/tune-guitar/)
+
+
+---
+
+## Tuning parameters
+
+.large[
+
+* MARS really only has two tuning parameters:
+
+    - The maximum degree of interaction
+  
+    - The maximum number of terms in the pruned model (including the intercept)
+
+
+```r
+caret::getModelInfo("earth")$earth$parameters
+```
+
+```
+##   parameter   class          label
+## 1    nprune numeric         #Terms
+## 2    degree numeric Product Degree
+```
+
+]
+
+
+---
+
+## Boston housing example
+
+
+```r
+# Load required packages
+library(caret)
+
+# Tune a MARS model
+set.seed(1512)  # for reprocubility
+boston_mars_tune &lt;- train(
+  x = subset(boston, select = -cmedv),
+  y = boston$cmedv,
+  method = "earth",
+  metric = "Rsquared",
+  trControl = trainControl(method = "repeatedcv", 
+                           number = 5, repeats = 3),
+  tuneGrid = expand.grid(degree = 1:5, nprune = 100)
+)
+```
+
+
+---
+
+## Boston housing example
+
+.scrollable[
+
+
+```r
+# Print model tuning summary
+print(boston_mars_tune)
+```
+
+```
+## Multivariate Adaptive Regression Spline 
+## 
+## 506 samples
+##  15 predictor
+## 
+## No pre-processing
+## Resampling: Cross-Validated (5 fold, repeated 3 times) 
+## Summary of sample sizes: 405, 405, 405, 405, 404, 405, ... 
+## Resampling results across tuning parameters:
+## 
+##   degree  RMSE      Rsquared   MAE     
+##   1       3.699004  0.8361761  2.497818
+##   2       3.654309  0.8395948  2.303042
+##   3       3.757028  0.8298992  2.325957
+##   4       3.845011  0.8213988  2.354962
+##   5       3.845011  0.8213988  2.354962
+## 
+## Tuning parameter 'nprune' was held constant at a value of 100
+## Rsquared was used to select the optimal model using the largest value.
+## The final values used for the model were nprune = 100 and degree = 2.
+```
+
+]
+
+
+---
+class: middle 
+
+.scrollable[
+
+
+```r
+# Plot model tuning summary
+ggplot(boston_mars_tune) + theme_light()
+```
+
+&lt;img src="Figures/04-Figures/04-mars-boston-caret-results-plot-1.svg" width="60%" style="display: block; margin: auto;" /&gt;
+
+]
+
+
+---
+
+## Boston housing example
+
+.scrollable[
+
+
+```r
+# Print model summary (for final model)
+summary(boston_mars_tune$finalModel)
+```
+
+```
+## Call: earth(x=data.frame[506,15], y=c(24,21.6,34.7,...), keepxy=TRUE,
+##             degree=2, nprune=100)
+## 
+##                               coefficients
+## (Intercept)                       28.39443
+## h(42.2248-lat)                    -7.97297
+## h(crim-4.42228)                   -0.11552
+## h(rm-6.431)                        9.56634
+## h(age-18.5)                       -0.07757
+## h(1.3567-dis)                    944.93708
+## h(dis-1.3567)                     -0.65441
+## h(lstat-6.12)                     -0.79636
+## h(lstat-22.11)                     0.60433
+## h(1.3567-dis) * b                 -2.36250
+## h(-70.965-lon) * h(age-18.5)       0.37275
+## h(lon- -70.965) * h(age-18.5)      1.37540
+## h(4.42228-crim) * h(tax-224)      -0.00153
+## h(4.42228-crim) * h(224-tax)       0.01879
+## h(nox-0.624) * h(rm-6.431)       -87.60384
+## h(0.713-nox) * h(lstat-6.12)       2.02644
+## h(nox-0.713) * h(lstat-6.12)       0.98496
+## h(6.431-rm) * h(dis-1.8209)       -0.59505
+## h(rm-6.431) * h(ptratio-18.6)     -2.50835
+## h(rm-6.431) * h(18.6-ptratio)      0.74292
+## h(305-tax) * h(6.12-lstat)         0.01943
+## h(tax-305) * h(6.12-lstat)         0.02203
+## 
+## Selected 22 of 29 terms, and 11 of 15 predictors
+## Termination condition: Reached nk 31
+## Importance: rm, lstat, nox, tax, dis, ptratio, b, crim, lon, age, lat, ...
+## Number of terms at each degree of interaction: 1 8 13
+## GCV 7.48941    RSS 3030.639    GRSq 0.9113462    RSq 0.928821
+```
+
+]
+
+
+---
+
+## Boston housing example
+
+.pull-left[
+
+
+```r
+# Variable importance plot
+vip(
+  boston_mars_tune, 
+* num_features = 15
+)  
+```
+
+]
+
+.pull-right[
+
+&lt;img src="Figures/04-Figures/04-mars-boston-caret-vip-plot-1.svg" style="display: block; margin: auto;" /&gt;
+
+]
+
+
+---
+
+## Boston housing example
+
+.pull-left[
+
+
+```r
+# Partial dependence of cmedv 
+# on both rm and nox
+pd &lt;- partial(
+  boston_mars_tune, 
+  pred.var = c("rm", "nox"),
+  chull = TRUE
+)
+
+# Interactive 3-D plot
+plotly::plot_ly(
+  x = ~rm, 
+  y = ~nox, 
+  z = ~yhat, 
+  data = pd,
+  type = "mesh3d"
+)
+```
+
+]
+
+.pull-right[
+
+<div id="6685a3c7c93" style="width:100%;height:504px;" class="plotly html-widget"></div>
+<script type="application/json" data-for="6685a3c7c93">{"x":{"visdat":{"6681d47e1d9":["function () ","plotlyVisDat"]},"cur_data":"6681d47e1d9","attrs":{"6681d47e1d9":{"x":{},"y":{},"z":{},"alpha":1,"sizes":[10,100],"type":"mesh3d"}},"layout":{"margin":{"b":40,"l":60,"t":25,"r":10},"scene":{"xaxis":{"title":"rm"},"yaxis":{"title":"nox"},"zaxis":{"title":"yhat"}},"xaxis":{"domain":[0,1]},"yaxis":{"domain":[0,1]},"hovermode":"closest","showlegend":false,"legend":{"y":0.5,"yanchor":"top"}},"source":"A","config":{"modeBarButtonsToAdd":[{"name":"Collaborate","icon":{"width":1000,"ascent":500,"descent":-50,"path":"M487 375c7-10 9-23 5-36l-79-259c-3-12-11-23-22-31-11-8-22-12-35-12l-263 0c-15 0-29 5-43 15-13 10-23 23-28 37-5 13-5 25-1 37 0 0 0 3 1 7 1 5 1 8 1 11 0 2 0 4-1 6 0 3-1 5-1 6 1 2 2 4 3 6 1 2 2 4 4 6 2 3 4 5 5 7 5 7 9 16 13 26 4 10 7 19 9 26 0 2 0 5 0 9-1 4-1 6 0 8 0 2 2 5 4 8 3 3 5 5 5 7 4 6 8 15 12 26 4 11 7 19 7 26 1 1 0 4 0 9-1 4-1 7 0 8 1 2 3 5 6 8 4 4 6 6 6 7 4 5 8 13 13 24 4 11 7 20 7 28 1 1 0 4 0 7-1 3-1 6-1 7 0 2 1 4 3 6 1 1 3 4 5 6 2 3 3 5 5 6 1 2 3 5 4 9 2 3 3 7 5 10 1 3 2 6 4 10 2 4 4 7 6 9 2 3 4 5 7 7 3 2 7 3 11 3 3 0 8 0 13-1l0-1c7 2 12 2 14 2l218 0c14 0 25-5 32-16 8-10 10-23 6-37l-79-259c-7-22-13-37-20-43-7-7-19-10-37-10l-248 0c-5 0-9-2-11-5-2-3-2-7 0-12 4-13 18-20 41-20l264 0c5 0 10 2 16 5 5 3 8 6 10 11l85 282c2 5 2 10 2 17 7-3 13-7 17-13z m-304 0c-1-3-1-5 0-7 1-1 3-2 6-2l174 0c2 0 4 1 7 2 2 2 4 4 5 7l6 18c0 3 0 5-1 7-1 1-3 2-6 2l-173 0c-3 0-5-1-8-2-2-2-4-4-4-7z m-24-73c-1-3-1-5 0-7 2-2 3-2 6-2l174 0c2 0 5 0 7 2 3 2 4 4 5 7l6 18c1 2 0 5-1 6-1 2-3 3-5 3l-174 0c-3 0-5-1-7-3-3-1-4-4-5-6z"},"click":"function(gd) { \n        // is this being viewed in RStudio?\n        if (location.search == '?viewer_pane=1') {\n          alert('To learn about plotly for collaboration, visit:\\n https://cpsievert.github.io/plotly_book/plot-ly-for-collaboration.html');\n        } else {\n          window.open('https://cpsievert.github.io/plotly_book/plot-ly-for-collaboration.html', '_blank');\n        }\n      }"}],"cloud":false},"data":[{"colorbar":{"title":"yhat","ticklen":2,"len":0.5,"y":1,"lenmode":"fraction","yanchor":"top"},"colorscale":[["0","rgba(68,1,84,1)"],["0.154720624949412","rgba(69,54,127,1)"],["0.178705725322847","rgba(67,61,130,1)"],["0.19401799715886","rgba(66,66,133,1)"],["0.207486334522668","rgba(64,70,135,1)"],["0.218714457275365","rgba(62,73,136,1)"],["0.228480372338053","rgba(62,76,137,1)"],["0.237521761762055","rgba(61,78,138,1)"],["0.246705507945194","rgba(60,81,138,1)"],["0.255751398679036","rgba(59,83,139,1)"],["0.263747719142678","rgba(59,85,139,1)"],["0.272855263289506","rgba(58,88,139,1)"],["0.28687008055989","rgba(56,92,140,1)"],["0.306163800797254","rgba(54,97,141,1)"],["0.327472109417289","rgba(50,102,142,1)"],["0.350443282877987","rgba(48,108,142,1)"],["0.376997962428916","rgba(46,114,142,1)"],["0.415062926327263","rgba(42,123,142,1)"],["0.478124358377664","rgba(38,138,141,1)"],["0.544165040817013","rgba(33,155,138,1)"],["0.616939633137427","rgba(46,172,128,1)"],["0.693081839134592","rgba(71,188,114,1)"],["0.776255305255619","rgba(108,205,90,1)"],["0.867042247509413","rgba(168,219,56,1)"],["1","rgba(253,231,37,1)"]],"showscale":true,"x":[5.85736,5.96174,6.06612,6.1705,6.27488,6.37926,6.48364,6.58802,6.6924,6.79678,6.90116,7.00554,7.10992,7.2143,7.31868,7.42306,5.75298,5.85736,5.96174,6.06612,6.1705,6.27488,6.37926,6.48364,6.58802,6.6924,6.79678,6.90116,7.00554,7.10992,7.2143,7.31868,7.42306,7.52744,7.63182,7.7362,7.84058,7.94496,5.6486,5.75298,5.85736,5.96174,6.06612,6.1705,6.27488,6.37926,6.48364,6.58802,6.6924,6.79678,6.90116,7.00554,7.10992,7.2143,7.31868,7.42306,7.52744,7.63182,7.7362,7.84058,7.94496,8.04934,5.54422,5.6486,5.75298,5.85736,5.96174,6.06612,6.1705,6.27488,6.37926,6.48364,6.58802,6.6924,6.79678,6.90116,7.00554,7.10992,7.2143,7.31868,7.42306,7.52744,7.63182,7.7362,7.84058,7.94496,8.04934,8.15372,5.43984,5.54422,5.6486,5.75298,5.85736,5.96174,6.06612,6.1705,6.27488,6.37926,6.48364,6.58802,6.6924,6.79678,6.90116,7.00554,7.10992,7.2143,7.31868,7.42306,7.52744,7.63182,7.7362,7.84058,7.94496,8.04934,8.15372,8.2581,5.33546,5.43984,5.54422,5.6486,5.75298,5.85736,5.96174,6.06612,6.1705,6.27488,6.37926,6.48364,6.58802,6.6924,6.79678,6.90116,7.00554,7.10992,7.2143,7.31868,7.42306,7.52744,7.63182,7.7362,7.84058,7.94496,8.04934,8.15372,8.2581,5.33546,5.43984,5.54422,5.6486,5.75298,5.85736,5.96174,6.06612,6.1705,6.27488,6.37926,6.48364,6.58802,6.6924,6.79678,6.90116,7.00554,7.10992,7.2143,7.31868,7.42306,7.52744,7.63182,7.7362,7.84058,7.94496,8.04934,8.15372,8.2581,8.36248,5.23108,5.33546,5.43984,5.54422,5.6486,5.75298,5.85736,5.96174,6.06612,6.1705,6.27488,6.37926,6.48364,6.58802,6.6924,6.79678,6.90116,7.00554,7.10992,7.2143,7.31868,7.42306,7.52744,7.63182,7.7362,7.84058,7.94496,8.04934,8.15372,8.2581,8.36248,5.1267,5.23108,5.33546,5.43984,5.54422,5.6486,5.75298,5.85736,5.96174,6.06612,6.1705,6.27488,6.37926,6.48364,6.58802,6.6924,6.79678,6.90116,7.00554,7.10992,7.2143,7.31868,7.42306,7.52744,7.63182,7.7362,7.84058,7.94496,8.04934,8.15372,8.2581,8.36248,8.46686,5.1267,5.23108,5.33546,5.43984,5.54422,5.6486,5.75298,5.85736,5.96174,6.06612,6.1705,6.27488,6.37926,6.48364,6.58802,6.6924,6.79678,6.90116,7.00554,7.10992,7.2143,7.31868,7.42306,7.52744,7.63182,7.7362,7.84058,7.94496,8.04934,8.15372,8.2581,8.36248,8.46686,8.57124,5.02232,5.1267,5.23108,5.33546,5.43984,5.54422,5.6486,5.75298,5.85736,5.96174,6.06612,6.1705,6.27488,6.37926,6.48364,6.58802,6.6924,6.79678,6.90116,7.00554,7.10992,7.2143,7.31868,7.42306,7.52744,7.63182,7.7362,7.84058,7.94496,8.04934,8.15372,8.2581,8.36248,8.46686,8.57124,4.91794,5.02232,5.1267,5.23108,5.33546,5.43984,5.54422,5.6486,5.75298,5.85736,5.96174,6.06612,6.1705,6.27488,6.37926,6.48364,6.58802,6.6924,6.79678,6.90116,7.00554,7.10992,7.2143,7.31868,7.42306,7.52744,7.63182,7.7362,7.84058,7.94496,8.04934,8.15372,8.2581,8.36248,8.46686,8.57124,8.67562,4.81356,4.91794,5.02232,5.1267,5.23108,5.33546,5.43984,5.54422,5.6486,5.75298,5.85736,5.96174,6.06612,6.1705,6.27488,6.37926,6.48364,6.58802,6.6924,6.79678,6.90116,7.00554,7.10992,7.2143,7.31868,7.42306,7.52744,7.63182,7.7362,7.84058,7.94496,8.04934,8.15372,8.2581,8.36248,8.46686,8.57124,8.67562,4.81356,4.91794,5.02232,5.1267,5.23108,5.33546,5.43984,5.54422,5.6486,5.75298,5.85736,5.96174,6.06612,6.1705,6.27488,6.37926,6.48364,6.58802,6.6924,6.79678,6.90116,7.00554,7.10992,7.2143,7.31868,7.42306,7.52744,7.63182,7.7362,7.84058,7.94496,8.04934,8.15372,8.2581,8.36248,8.46686,8.57124,8.67562,4.70918,4.81356,4.91794,5.02232,5.1267,5.23108,5.33546,5.43984,5.54422,5.6486,5.75298,5.85736,5.96174,6.06612,6.1705,6.27488,6.37926,6.48364,6.58802,6.6924,6.79678,6.90116,7.00554,7.10992,7.2143,7.31868,7.42306,7.52744,7.63182,7.7362,7.84058,7.94496,8.04934,8.15372,8.2581,8.36248,8.46686,8.57124,8.67562,4.6048,4.70918,4.81356,4.91794,5.02232,5.1267,5.23108,5.33546,5.43984,5.54422,5.6486,5.75298,5.85736,5.96174,6.06612,6.1705,6.27488,6.37926,6.48364,6.58802,6.6924,6.79678,6.90116,7.00554,7.10992,7.2143,7.31868,7.42306,7.52744,7.63182,7.7362,7.84058,7.94496,8.04934,8.15372,8.2581,8.36248,8.46686,8.57124,8.67562,4.50042,4.6048,4.70918,4.81356,4.91794,5.02232,5.1267,5.23108,5.33546,5.43984,5.54422,5.6486,5.75298,5.85736,5.96174,6.06612,6.1705,6.27488,6.37926,6.48364,6.58802,6.6924,6.79678,6.90116,7.00554,7.10992,7.2143,7.31868,7.42306,7.52744,7.63182,7.7362,7.84058,7.94496,8.04934,8.15372,8.2581,8.36248,8.46686,8.57124,8.67562,4.50042,4.6048,4.70918,4.81356,4.91794,5.02232,5.1267,5.23108,5.33546,5.43984,5.54422,5.6486,5.75298,5.85736,5.96174,6.06612,6.1705,6.27488,6.37926,6.48364,6.58802,6.6924,6.79678,6.90116,7.00554,7.10992,7.2143,7.31868,7.42306,7.52744,7.63182,7.7362,7.84058,7.94496,8.04934,8.15372,8.2581,8.36248,8.46686,8.57124,8.67562,4.39604,4.50042,4.6048,4.70918,4.81356,4.91794,5.02232,5.1267,5.23108,5.33546,5.43984,5.54422,5.6486,5.75298,5.85736,5.96174,6.06612,6.1705,6.27488,6.37926,6.48364,6.58802,6.6924,6.79678,6.90116,7.00554,7.10992,7.2143,7.31868,7.42306,7.52744,7.63182,7.7362,7.84058,7.94496,8.04934,8.15372,8.2581,8.36248,8.46686,8.57124,8.67562,4.29166,4.39604,4.50042,4.6048,4.70918,4.81356,4.91794,5.02232,5.1267,5.23108,5.33546,5.43984,5.54422,5.6486,5.75298,5.85736,5.96174,6.06612,6.1705,6.27488,6.37926,6.48364,6.58802,6.6924,6.79678,6.90116,7.00554,7.10992,7.2143,7.31868,7.42306,7.52744,7.63182,7.7362,7.84058,7.94496,8.04934,8.15372,8.2581,8.36248,8.46686,8.57124,8.67562,4.29166,4.39604,4.50042,4.6048,4.70918,4.81356,4.91794,5.02232,5.1267,5.23108,5.33546,5.43984,5.54422,5.6486,5.75298,5.85736,5.96174,6.06612,6.1705,6.27488,6.37926,6.48364,6.58802,6.6924,6.79678,6.90116,7.00554,7.10992,7.2143,7.31868,7.42306,7.52744,7.63182,7.7362,7.84058,7.94496,8.04934,8.15372,8.2581,8.36248,8.46686,8.57124,8.67562,4.18728,4.29166,4.39604,4.50042,4.6048,4.70918,4.81356,4.91794,5.02232,5.1267,5.23108,5.33546,5.43984,5.54422,5.6486,5.75298,5.85736,5.96174,6.06612,6.1705,6.27488,6.37926,6.48364,6.58802,6.6924,6.79678,6.90116,7.00554,7.10992,7.2143,7.31868,7.42306,7.52744,7.63182,7.7362,7.84058,7.94496,8.04934,8.15372,8.2581,8.36248,8.46686,8.57124,8.67562,4.0829,4.18728,4.29166,4.39604,4.50042,4.6048,4.70918,4.81356,4.91794,5.02232,5.1267,5.23108,5.33546,5.43984,5.54422,5.6486,5.75298,5.85736,5.96174,6.06612,6.1705,6.27488,6.37926,6.48364,6.58802,6.6924,6.79678,6.90116,7.00554,7.10992,7.2143,7.31868,7.42306,7.52744,7.63182,7.7362,7.84058,7.94496,8.04934,8.15372,8.2581,8.36248,8.46686,8.57124,8.67562,3.97852,4.0829,4.18728,4.29166,4.39604,4.50042,4.6048,4.70918,4.81356,4.91794,5.02232,5.1267,5.23108,5.33546,5.43984,5.54422,5.6486,5.75298,5.85736,5.96174,6.06612,6.1705,6.27488,6.37926,6.48364,6.58802,6.6924,6.79678,6.90116,7.00554,7.10992,7.2143,7.31868,7.42306,7.52744,7.63182,7.7362,7.84058,7.94496,8.04934,8.15372,8.2581,8.36248,8.46686,8.57124,8.67562,3.97852,4.0829,4.18728,4.29166,4.39604,4.50042,4.6048,4.70918,4.81356,4.91794,5.02232,5.1267,5.23108,5.33546,5.43984,5.54422,5.6486,5.75298,5.85736,5.96174,6.06612,6.1705,6.27488,6.37926,6.48364,6.58802,6.6924,6.79678,6.90116,7.00554,7.10992,7.2143,7.31868,7.42306,7.52744,7.63182,7.7362,7.84058,7.94496,8.04934,8.15372,8.2581,8.36248,8.46686,8.57124,8.67562,3.87414,3.97852,4.0829,4.18728,4.29166,4.39604,4.50042,4.6048,4.70918,4.81356,4.91794,5.02232,5.1267,5.23108,5.33546,5.43984,5.54422,5.6486,5.75298,5.85736,5.96174,6.06612,6.1705,6.27488,6.37926,6.48364,6.58802,6.6924,6.79678,6.90116,7.00554,7.10992,7.2143,7.31868,7.42306,7.52744,7.63182,7.7362,7.84058,7.94496,8.04934,8.15372,8.2581,8.36248,8.46686,8.57124,8.67562,3.87414,3.97852,4.0829,4.18728,4.29166,4.39604,4.50042,4.6048,4.70918,4.81356,4.91794,5.02232,5.1267,5.23108,5.33546,5.43984,5.54422,5.6486,5.75298,5.85736,5.96174,6.06612,6.1705,6.27488,6.37926,6.48364,6.58802,6.6924,6.79678,6.90116,7.00554,7.10992,7.2143,7.31868,7.42306,7.52744,7.63182,7.7362,7.84058,7.94496,8.04934,8.15372,8.2581,8.36248,8.46686,8.57124,8.67562,3.87414,3.97852,4.0829,4.18728,4.29166,4.39604,4.50042,4.6048,4.70918,4.81356,4.91794,5.02232,5.1267,5.23108,5.33546,5.43984,5.54422,5.6486,5.75298,5.85736,5.96174,6.06612,6.1705,6.27488,6.37926,6.48364,6.58802,6.6924,6.79678,6.90116,7.00554,7.10992,7.2143,7.31868,7.42306,7.52744,7.63182,7.7362,7.84058,7.94496,8.04934,8.15372,8.2581,8.36248,8.46686,8.57124,8.67562,3.76976,3.87414,3.97852,4.0829,4.18728,4.29166,4.39604,4.50042,4.6048,4.70918,4.81356,4.91794,5.02232,5.1267,5.23108,5.33546,5.43984,5.54422,5.6486,5.75298,5.85736,5.96174,6.06612,6.1705,6.27488,6.37926,6.48364,6.58802,6.6924,6.79678,6.90116,7.00554,7.10992,7.2143,7.31868,7.42306,7.52744,7.63182,7.7362,7.84058,7.94496,8.04934,8.15372,8.2581,8.36248,8.46686,8.57124,8.67562,3.76976,3.87414,3.97852,4.0829,4.18728,4.29166,4.39604,4.50042,4.6048,4.70918,4.81356,4.91794,5.02232,5.1267,5.23108,5.33546,5.43984,5.54422,5.6486,5.75298,5.85736,5.96174,6.06612,6.1705,6.27488,6.37926,6.48364,6.58802,6.6924,6.79678,6.90116,7.00554,7.10992,7.2143,7.31868,7.42306,7.52744,7.63182,7.7362,7.84058,7.94496,8.04934,8.15372,8.2581,8.36248,8.46686,8.57124,8.67562,3.76976,3.87414,3.97852,4.0829,4.18728,4.29166,4.39604,4.50042,4.6048,4.70918,4.81356,4.91794,5.02232,5.1267,5.23108,5.33546,5.43984,5.54422,5.6486,5.75298,5.85736,5.96174,6.06612,6.1705,6.27488,6.37926,6.48364,6.58802,6.6924,6.79678,6.90116,7.00554,7.10992,7.2143,7.31868,7.42306,7.52744,7.63182,7.7362,7.84058,7.94496,8.04934,8.15372,8.2581,8.36248,8.46686,8.57124,8.67562,3.66538,3.76976,3.87414,3.97852,4.0829,4.18728,4.29166,4.39604,4.50042,4.6048,4.70918,4.81356,4.91794,5.02232,5.1267,5.23108,5.33546,5.43984,5.54422,5.6486,5.75298,5.85736,5.96174,6.06612,6.1705,6.27488,6.37926,6.48364,6.58802,6.6924,6.79678,6.90116,7.00554,7.10992,7.2143,7.31868,7.42306,7.52744,7.63182,7.7362,7.84058,7.94496,8.04934,8.15372,8.2581,8.36248,8.46686,8.57124,8.67562,3.66538,3.76976,3.87414,3.97852,4.0829,4.18728,4.29166,4.39604,4.50042,4.6048,4.70918,4.81356,4.91794,5.02232,5.1267,5.23108,5.33546,5.43984,5.54422,5.6486,5.75298,5.85736,5.96174,6.06612,6.1705,6.27488,6.37926,6.48364,6.58802,6.6924,6.79678,6.90116,7.00554,7.10992,7.2143,7.31868,7.42306,7.52744,7.63182,7.7362,7.84058,7.94496,8.04934,8.15372,8.2581,8.36248,8.46686,8.57124,8.67562,3.66538,3.76976,3.87414,3.97852,4.0829,4.18728,4.29166,4.39604,4.50042,4.6048,4.70918,4.81356,4.91794,5.02232,5.1267,5.23108,5.33546,5.43984,5.54422,5.6486,5.75298,5.85736,5.96174,6.06612,6.1705,6.27488,6.37926,6.48364,6.58802,6.6924,6.79678,6.90116,7.00554,7.10992,7.2143,7.31868,7.42306,7.52744,7.63182,7.7362,7.84058,7.94496,8.04934,8.15372,8.2581,8.36248,8.46686,8.57124,8.67562,3.66538,3.76976,3.87414,3.97852,4.0829,4.18728,4.29166,4.39604,4.50042,4.6048,4.70918,4.81356,4.91794,5.02232,5.1267,5.23108,5.33546,5.43984,5.54422,5.6486,5.75298,5.85736,5.96174,6.06612,6.1705,6.27488,6.37926,6.48364,6.58802,6.6924,6.79678,6.90116,7.00554,7.10992,7.2143,7.31868,7.42306,7.52744,7.63182,7.7362,7.84058,7.94496,8.04934,8.15372,8.2581,8.36248,8.46686,8.57124,3.76976,3.87414,3.97852,4.0829,4.18728,4.29166,4.39604,4.50042,4.6048,4.70918,4.81356,4.91794,5.02232,5.1267,5.23108,5.33546,5.43984,5.54422,5.6486,5.75298,5.85736,5.96174,6.06612,6.1705,6.27488,6.37926,6.48364,6.58802,6.6924,6.79678,6.90116,7.00554,7.10992,7.2143,7.31868,7.42306,7.52744,7.63182,7.7362,7.84058,7.94496,8.04934,8.15372,8.2581,8.36248,8.46686,3.87414,3.97852,4.0829,4.18728,4.29166,4.39604,4.50042,4.6048,4.70918,4.81356,4.91794,5.02232,5.1267,5.23108,5.33546,5.43984,5.54422,5.6486,5.75298,5.85736,5.96174,6.06612,6.1705,6.27488,6.37926,6.48364,6.58802,6.6924,6.79678,6.90116,7.00554,7.10992,7.2143,7.31868,7.42306,7.52744,7.63182,7.7362,7.84058,7.94496,8.04934,8.15372,8.2581,8.36248,3.97852,4.0829,4.18728,4.29166,4.39604,4.50042,4.6048,4.70918,4.81356,4.91794,5.02232,5.1267,5.23108,5.33546,5.43984,5.54422,5.6486,5.75298,5.85736,5.96174,6.06612,6.1705,6.27488,6.37926,6.48364,6.58802,6.6924,6.79678,6.90116,7.00554,7.10992,7.2143,7.31868,7.42306,7.52744,7.63182,7.7362,7.84058,7.94496,8.04934,8.15372,3.97852,4.0829,4.18728,4.29166,4.39604,4.50042,4.6048,4.70918,4.81356,4.91794,5.02232,5.1267,5.23108,5.33546,5.43984,5.54422,5.6486,5.75298,5.85736,5.96174,6.06612,6.1705,6.27488,6.37926,6.48364,6.58802,6.6924,6.79678,6.90116,7.00554,7.10992,7.2143,7.31868,7.42306,7.52744,7.63182,7.7362,7.84058,7.94496,8.04934,4.0829,4.18728,4.29166,4.39604,4.50042,4.6048,4.70918,4.81356,4.91794,5.02232,5.1267,5.23108,5.33546,5.43984,5.54422,5.6486,5.75298,5.85736,5.96174,6.06612,6.1705,6.27488,6.37926,6.48364,6.58802,6.6924,6.79678,6.90116,7.00554,7.10992,7.2143,7.31868,7.42306,7.52744,7.63182,7.7362,7.84058,7.94496,4.18728,4.29166,4.39604,4.50042,4.6048,4.70918,4.81356,4.91794,5.02232,5.1267,5.23108,5.33546,5.43984,5.54422,5.6486,5.75298,5.85736,5.96174,6.06612,6.1705,6.27488,6.37926,6.48364,6.58802,6.6924,6.79678,6.90116,7.00554,7.10992,7.2143,7.31868,7.42306,7.52744,7.63182,7.7362,4.29166,4.39604,4.50042,4.6048,4.70918,4.81356,4.91794,5.02232,5.1267,5.23108,5.33546,5.43984,5.54422,5.6486,5.75298,5.85736,5.96174,6.06612,6.1705,6.27488,6.37926,6.48364,6.58802,6.6924,6.79678,6.90116,7.00554,7.10992,7.2143,7.31868,7.42306,7.52744,7.63182,4.39604,4.50042,4.6048,4.70918,4.81356,4.91794,5.02232,5.1267,5.23108,5.33546,5.43984,5.54422,5.6486,5.75298,5.85736,5.96174,6.06612,6.1705,6.27488,6.37926,6.48364,6.58802,6.6924,6.79678,6.90116,7.00554,7.10992,7.2143,7.31868,7.42306,4.39604,4.50042,4.6048,4.70918,4.81356,4.91794,5.02232,5.1267,5.23108,5.33546,5.43984,5.54422,5.6486,5.75298,5.85736,5.96174,6.06612,6.1705,6.27488,6.37926,6.48364,6.58802,6.6924,6.79678,6.90116,7.00554,7.10992,7.2143,7.31868,4.50042,4.6048,4.70918,4.81356,4.91794,5.02232,5.1267,5.23108,5.33546,5.43984,5.54422,5.6486,5.75298,5.85736,5.96174,6.06612,6.1705,6.27488,6.37926,6.48364,6.58802,6.6924,6.79678,6.90116,7.00554,7.10992,7.2143,4.6048,4.70918,4.81356,4.91794,5.02232,5.1267,5.23108,5.33546,5.43984,5.54422,5.6486,5.75298,5.85736,5.96174,6.06612,6.1705,6.27488,6.37926,6.48364,6.58802,6.6924,6.79678,6.90116,7.00554,4.70918,4.81356,4.91794,5.02232,5.1267,5.23108,5.33546,5.43984,5.54422,5.6486,5.75298,5.85736,5.96174,6.06612,6.1705,6.27488,6.37926,6.48364,6.58802,6.6924,6.79678,6.90116,4.81356,4.91794,5.02232,5.1267,5.23108,5.33546,5.43984,5.54422,5.6486,5.75298,5.85736,5.96174,6.06612,6.1705,6.27488,6.37926,6.48364,6.58802,6.6924,6.79678,4.91794,5.02232,5.1267,5.23108,5.33546,5.43984,5.54422,5.6486,5.75298,5.85736,5.96174,6.06612,6.1705,6.27488,6.37926,6.48364,6.58802],"y":[0.39472,0.39472,0.39472,0.39472,0.39472,0.39472,0.39472,0.39472,0.39472,0.39472,0.39472,0.39472,0.39472,0.39472,0.39472,0.39472,0.40444,0.40444,0.40444,0.40444,0.40444,0.40444,0.40444,0.40444,0.40444,0.40444,0.40444,0.40444,0.40444,0.40444,0.40444,0.40444,0.40444,0.40444,0.40444,0.40444,0.40444,0.40444,0.41416,0.41416,0.41416,0.41416,0.41416,0.41416,0.41416,0.41416,0.41416,0.41416,0.41416,0.41416,0.41416,0.41416,0.41416,0.41416,0.41416,0.41416,0.41416,0.41416,0.41416,0.41416,0.41416,0.41416,0.42388,0.42388,0.42388,0.42388,0.42388,0.42388,0.42388,0.42388,0.42388,0.42388,0.42388,0.42388,0.42388,0.42388,0.42388,0.42388,0.42388,0.42388,0.42388,0.42388,0.42388,0.42388,0.42388,0.42388,0.42388,0.42388,0.4336,0.4336,0.4336,0.4336,0.4336,0.4336,0.4336,0.4336,0.4336,0.4336,0.4336,0.4336,0.4336,0.4336,0.4336,0.4336,0.4336,0.4336,0.4336,0.4336,0.4336,0.4336,0.4336,0.4336,0.4336,0.4336,0.4336,0.4336,0.44332,0.44332,0.44332,0.44332,0.44332,0.44332,0.44332,0.44332,0.44332,0.44332,0.44332,0.44332,0.44332,0.44332,0.44332,0.44332,0.44332,0.44332,0.44332,0.44332,0.44332,0.44332,0.44332,0.44332,0.44332,0.44332,0.44332,0.44332,0.44332,0.45304,0.45304,0.45304,0.45304,0.45304,0.45304,0.45304,0.45304,0.45304,0.45304,0.45304,0.45304,0.45304,0.45304,0.45304,0.45304,0.45304,0.45304,0.45304,0.45304,0.45304,0.45304,0.45304,0.45304,0.45304,0.45304,0.45304,0.45304,0.45304,0.45304,0.46276,0.46276,0.46276,0.46276,0.46276,0.46276,0.46276,0.46276,0.46276,0.46276,0.46276,0.46276,0.46276,0.46276,0.46276,0.46276,0.46276,0.46276,0.46276,0.46276,0.46276,0.46276,0.46276,0.46276,0.46276,0.46276,0.46276,0.46276,0.46276,0.46276,0.46276,0.47248,0.47248,0.47248,0.47248,0.47248,0.47248,0.47248,0.47248,0.47248,0.47248,0.47248,0.47248,0.47248,0.47248,0.47248,0.47248,0.47248,0.47248,0.47248,0.47248,0.47248,0.47248,0.47248,0.47248,0.47248,0.47248,0.47248,0.47248,0.47248,0.47248,0.47248,0.47248,0.47248,0.4822,0.4822,0.4822,0.4822,0.4822,0.4822,0.4822,0.4822,0.4822,0.4822,0.4822,0.4822,0.4822,0.4822,0.4822,0.4822,0.4822,0.4822,0.4822,0.4822,0.4822,0.4822,0.4822,0.4822,0.4822,0.4822,0.4822,0.4822,0.4822,0.4822,0.4822,0.4822,0.4822,0.4822,0.49192,0.49192,0.49192,0.49192,0.49192,0.49192,0.49192,0.49192,0.49192,0.49192,0.49192,0.49192,0.49192,0.49192,0.49192,0.49192,0.49192,0.49192,0.49192,0.49192,0.49192,0.49192,0.49192,0.49192,0.49192,0.49192,0.49192,0.49192,0.49192,0.49192,0.49192,0.49192,0.49192,0.49192,0.49192,0.50164,0.50164,0.50164,0.50164,0.50164,0.50164,0.50164,0.50164,0.50164,0.50164,0.50164,0.50164,0.50164,0.50164,0.50164,0.50164,0.50164,0.50164,0.50164,0.50164,0.50164,0.50164,0.50164,0.50164,0.50164,0.50164,0.50164,0.50164,0.50164,0.50164,0.50164,0.50164,0.50164,0.50164,0.50164,0.50164,0.50164,0.51136,0.51136,0.51136,0.51136,0.51136,0.51136,0.51136,0.51136,0.51136,0.51136,0.51136,0.51136,0.51136,0.51136,0.51136,0.51136,0.51136,0.51136,0.51136,0.51136,0.51136,0.51136,0.51136,0.51136,0.51136,0.51136,0.51136,0.51136,0.51136,0.51136,0.51136,0.51136,0.51136,0.51136,0.51136,0.51136,0.51136,0.51136,0.52108,0.52108,0.52108,0.52108,0.52108,0.52108,0.52108,0.52108,0.52108,0.52108,0.52108,0.52108,0.52108,0.52108,0.52108,0.52108,0.52108,0.52108,0.52108,0.52108,0.52108,0.52108,0.52108,0.52108,0.52108,0.52108,0.52108,0.52108,0.52108,0.52108,0.52108,0.52108,0.52108,0.52108,0.52108,0.52108,0.52108,0.52108,0.5308,0.5308,0.5308,0.5308,0.5308,0.5308,0.5308,0.5308,0.5308,0.5308,0.5308,0.5308,0.5308,0.5308,0.5308,0.5308,0.5308,0.5308,0.5308,0.5308,0.5308,0.5308,0.5308,0.5308,0.5308,0.5308,0.5308,0.5308,0.5308,0.5308,0.5308,0.5308,0.5308,0.5308,0.5308,0.5308,0.5308,0.5308,0.5308,0.54052,0.54052,0.54052,0.54052,0.54052,0.54052,0.54052,0.54052,0.54052,0.54052,0.54052,0.54052,0.54052,0.54052,0.54052,0.54052,0.54052,0.54052,0.54052,0.54052,0.54052,0.54052,0.54052,0.54052,0.54052,0.54052,0.54052,0.54052,0.54052,0.54052,0.54052,0.54052,0.54052,0.54052,0.54052,0.54052,0.54052,0.54052,0.54052,0.54052,0.55024,0.55024,0.55024,0.55024,0.55024,0.55024,0.55024,0.55024,0.55024,0.55024,0.55024,0.55024,0.55024,0.55024,0.55024,0.55024,0.55024,0.55024,0.55024,0.55024,0.55024,0.55024,0.55024,0.55024,0.55024,0.55024,0.55024,0.55024,0.55024,0.55024,0.55024,0.55024,0.55024,0.55024,0.55024,0.55024,0.55024,0.55024,0.55024,0.55024,0.55024,0.55996,0.55996,0.55996,0.55996,0.55996,0.55996,0.55996,0.55996,0.55996,0.55996,0.55996,0.55996,0.55996,0.55996,0.55996,0.55996,0.55996,0.55996,0.55996,0.55996,0.55996,0.55996,0.55996,0.55996,0.55996,0.55996,0.55996,0.55996,0.55996,0.55996,0.55996,0.55996,0.55996,0.55996,0.55996,0.55996,0.55996,0.55996,0.55996,0.55996,0.55996,0.56968,0.56968,0.56968,0.56968,0.56968,0.56968,0.56968,0.56968,0.56968,0.56968,0.56968,0.56968,0.56968,0.56968,0.56968,0.56968,0.56968,0.56968,0.56968,0.56968,0.56968,0.56968,0.56968,0.56968,0.56968,0.56968,0.56968,0.56968,0.56968,0.56968,0.56968,0.56968,0.56968,0.56968,0.56968,0.56968,0.56968,0.56968,0.56968,0.56968,0.56968,0.56968,0.5794,0.5794,0.5794,0.5794,0.5794,0.5794,0.5794,0.5794,0.5794,0.5794,0.5794,0.5794,0.5794,0.5794,0.5794,0.5794,0.5794,0.5794,0.5794,0.5794,0.5794,0.5794,0.5794,0.5794,0.5794,0.5794,0.5794,0.5794,0.5794,0.5794,0.5794,0.5794,0.5794,0.5794,0.5794,0.5794,0.5794,0.5794,0.5794,0.5794,0.5794,0.5794,0.5794,0.58912,0.58912,0.58912,0.58912,0.58912,0.58912,0.58912,0.58912,0.58912,0.58912,0.58912,0.58912,0.58912,0.58912,0.58912,0.58912,0.58912,0.58912,0.58912,0.58912,0.58912,0.58912,0.58912,0.58912,0.58912,0.58912,0.58912,0.58912,0.58912,0.58912,0.58912,0.58912,0.58912,0.58912,0.58912,0.58912,0.58912,0.58912,0.58912,0.58912,0.58912,0.58912,0.58912,0.59884,0.59884,0.59884,0.59884,0.59884,0.59884,0.59884,0.59884,0.59884,0.59884,0.59884,0.59884,0.59884,0.59884,0.59884,0.59884,0.59884,0.59884,0.59884,0.59884,0.59884,0.59884,0.59884,0.59884,0.59884,0.59884,0.59884,0.59884,0.59884,0.59884,0.59884,0.59884,0.59884,0.59884,0.59884,0.59884,0.59884,0.59884,0.59884,0.59884,0.59884,0.59884,0.59884,0.59884,0.60856,0.60856,0.60856,0.60856,0.60856,0.60856,0.60856,0.60856,0.60856,0.60856,0.60856,0.60856,0.60856,0.60856,0.60856,0.60856,0.60856,0.60856,0.60856,0.60856,0.60856,0.60856,0.60856,0.60856,0.60856,0.60856,0.60856,0.60856,0.60856,0.60856,0.60856,0.60856,0.60856,0.60856,0.60856,0.60856,0.60856,0.60856,0.60856,0.60856,0.60856,0.60856,0.60856,0.60856,0.60856,0.61828,0.61828,0.61828,0.61828,0.61828,0.61828,0.61828,0.61828,0.61828,0.61828,0.61828,0.61828,0.61828,0.61828,0.61828,0.61828,0.61828,0.61828,0.61828,0.61828,0.61828,0.61828,0.61828,0.61828,0.61828,0.61828,0.61828,0.61828,0.61828,0.61828,0.61828,0.61828,0.61828,0.61828,0.61828,0.61828,0.61828,0.61828,0.61828,0.61828,0.61828,0.61828,0.61828,0.61828,0.61828,0.61828,0.628,0.628,0.628,0.628,0.628,0.628,0.628,0.628,0.628,0.628,0.628,0.628,0.628,0.628,0.628,0.628,0.628,0.628,0.628,0.628,0.628,0.628,0.628,0.628,0.628,0.628,0.628,0.628,0.628,0.628,0.628,0.628,0.628,0.628,0.628,0.628,0.628,0.628,0.628,0.628,0.628,0.628,0.628,0.628,0.628,0.628,0.63772,0.63772,0.63772,0.63772,0.63772,0.63772,0.63772,0.63772,0.63772,0.63772,0.63772,0.63772,0.63772,0.63772,0.63772,0.63772,0.63772,0.63772,0.63772,0.63772,0.63772,0.63772,0.63772,0.63772,0.63772,0.63772,0.63772,0.63772,0.63772,0.63772,0.63772,0.63772,0.63772,0.63772,0.63772,0.63772,0.63772,0.63772,0.63772,0.63772,0.63772,0.63772,0.63772,0.63772,0.63772,0.63772,0.63772,0.64744,0.64744,0.64744,0.64744,0.64744,0.64744,0.64744,0.64744,0.64744,0.64744,0.64744,0.64744,0.64744,0.64744,0.64744,0.64744,0.64744,0.64744,0.64744,0.64744,0.64744,0.64744,0.64744,0.64744,0.64744,0.64744,0.64744,0.64744,0.64744,0.64744,0.64744,0.64744,0.64744,0.64744,0.64744,0.64744,0.64744,0.64744,0.64744,0.64744,0.64744,0.64744,0.64744,0.64744,0.64744,0.64744,0.64744,0.65716,0.65716,0.65716,0.65716,0.65716,0.65716,0.65716,0.65716,0.65716,0.65716,0.65716,0.65716,0.65716,0.65716,0.65716,0.65716,0.65716,0.65716,0.65716,0.65716,0.65716,0.65716,0.65716,0.65716,0.65716,0.65716,0.65716,0.65716,0.65716,0.65716,0.65716,0.65716,0.65716,0.65716,0.65716,0.65716,0.65716,0.65716,0.65716,0.65716,0.65716,0.65716,0.65716,0.65716,0.65716,0.65716,0.65716,0.66688,0.66688,0.66688,0.66688,0.66688,0.66688,0.66688,0.66688,0.66688,0.66688,0.66688,0.66688,0.66688,0.66688,0.66688,0.66688,0.66688,0.66688,0.66688,0.66688,0.66688,0.66688,0.66688,0.66688,0.66688,0.66688,0.66688,0.66688,0.66688,0.66688,0.66688,0.66688,0.66688,0.66688,0.66688,0.66688,0.66688,0.66688,0.66688,0.66688,0.66688,0.66688,0.66688,0.66688,0.66688,0.66688,0.66688,0.66688,0.6766,0.6766,0.6766,0.6766,0.6766,0.6766,0.6766,0.6766,0.6766,0.6766,0.6766,0.6766,0.6766,0.6766,0.6766,0.6766,0.6766,0.6766,0.6766,0.6766,0.6766,0.6766,0.6766,0.6766,0.6766,0.6766,0.6766,0.6766,0.6766,0.6766,0.6766,0.6766,0.6766,0.6766,0.6766,0.6766,0.6766,0.6766,0.6766,0.6766,0.6766,0.6766,0.6766,0.6766,0.6766,0.6766,0.6766,0.6766,0.68632,0.68632,0.68632,0.68632,0.68632,0.68632,0.68632,0.68632,0.68632,0.68632,0.68632,0.68632,0.68632,0.68632,0.68632,0.68632,0.68632,0.68632,0.68632,0.68632,0.68632,0.68632,0.68632,0.68632,0.68632,0.68632,0.68632,0.68632,0.68632,0.68632,0.68632,0.68632,0.68632,0.68632,0.68632,0.68632,0.68632,0.68632,0.68632,0.68632,0.68632,0.68632,0.68632,0.68632,0.68632,0.68632,0.68632,0.68632,0.69604,0.69604,0.69604,0.69604,0.69604,0.69604,0.69604,0.69604,0.69604,0.69604,0.69604,0.69604,0.69604,0.69604,0.69604,0.69604,0.69604,0.69604,0.69604,0.69604,0.69604,0.69604,0.69604,0.69604,0.69604,0.69604,0.69604,0.69604,0.69604,0.69604,0.69604,0.69604,0.69604,0.69604,0.69604,0.69604,0.69604,0.69604,0.69604,0.69604,0.69604,0.69604,0.69604,0.69604,0.69604,0.69604,0.69604,0.69604,0.69604,0.70576,0.70576,0.70576,0.70576,0.70576,0.70576,0.70576,0.70576,0.70576,0.70576,0.70576,0.70576,0.70576,0.70576,0.70576,0.70576,0.70576,0.70576,0.70576,0.70576,0.70576,0.70576,0.70576,0.70576,0.70576,0.70576,0.70576,0.70576,0.70576,0.70576,0.70576,0.70576,0.70576,0.70576,0.70576,0.70576,0.70576,0.70576,0.70576,0.70576,0.70576,0.70576,0.70576,0.70576,0.70576,0.70576,0.70576,0.70576,0.70576,0.71548,0.71548,0.71548,0.71548,0.71548,0.71548,0.71548,0.71548,0.71548,0.71548,0.71548,0.71548,0.71548,0.71548,0.71548,0.71548,0.71548,0.71548,0.71548,0.71548,0.71548,0.71548,0.71548,0.71548,0.71548,0.71548,0.71548,0.71548,0.71548,0.71548,0.71548,0.71548,0.71548,0.71548,0.71548,0.71548,0.71548,0.71548,0.71548,0.71548,0.71548,0.71548,0.71548,0.71548,0.71548,0.71548,0.71548,0.71548,0.71548,0.7252,0.7252,0.7252,0.7252,0.7252,0.7252,0.7252,0.7252,0.7252,0.7252,0.7252,0.7252,0.7252,0.7252,0.7252,0.7252,0.7252,0.7252,0.7252,0.7252,0.7252,0.7252,0.7252,0.7252,0.7252,0.7252,0.7252,0.7252,0.7252,0.7252,0.7252,0.7252,0.7252,0.7252,0.7252,0.7252,0.7252,0.7252,0.7252,0.7252,0.7252,0.7252,0.7252,0.7252,0.7252,0.7252,0.7252,0.7252,0.73492,0.73492,0.73492,0.73492,0.73492,0.73492,0.73492,0.73492,0.73492,0.73492,0.73492,0.73492,0.73492,0.73492,0.73492,0.73492,0.73492,0.73492,0.73492,0.73492,0.73492,0.73492,0.73492,0.73492,0.73492,0.73492,0.73492,0.73492,0.73492,0.73492,0.73492,0.73492,0.73492,0.73492,0.73492,0.73492,0.73492,0.73492,0.73492,0.73492,0.73492,0.73492,0.73492,0.73492,0.73492,0.73492,0.74464,0.74464,0.74464,0.74464,0.74464,0.74464,0.74464,0.74464,0.74464,0.74464,0.74464,0.74464,0.74464,0.74464,0.74464,0.74464,0.74464,0.74464,0.74464,0.74464,0.74464,0.74464,0.74464,0.74464,0.74464,0.74464,0.74464,0.74464,0.74464,0.74464,0.74464,0.74464,0.74464,0.74464,0.74464,0.74464,0.74464,0.74464,0.74464,0.74464,0.74464,0.74464,0.74464,0.74464,0.75436,0.75436,0.75436,0.75436,0.75436,0.75436,0.75436,0.75436,0.75436,0.75436,0.75436,0.75436,0.75436,0.75436,0.75436,0.75436,0.75436,0.75436,0.75436,0.75436,0.75436,0.75436,0.75436,0.75436,0.75436,0.75436,0.75436,0.75436,0.75436,0.75436,0.75436,0.75436,0.75436,0.75436,0.75436,0.75436,0.75436,0.75436,0.75436,0.75436,0.75436,0.76408,0.76408,0.76408,0.76408,0.76408,0.76408,0.76408,0.76408,0.76408,0.76408,0.76408,0.76408,0.76408,0.76408,0.76408,0.76408,0.76408,0.76408,0.76408,0.76408,0.76408,0.76408,0.76408,0.76408,0.76408,0.76408,0.76408,0.76408,0.76408,0.76408,0.76408,0.76408,0.76408,0.76408,0.76408,0.76408,0.76408,0.76408,0.76408,0.76408,0.7738,0.7738,0.7738,0.7738,0.7738,0.7738,0.7738,0.7738,0.7738,0.7738,0.7738,0.7738,0.7738,0.7738,0.7738,0.7738,0.7738,0.7738,0.7738,0.7738,0.7738,0.7738,0.7738,0.7738,0.7738,0.7738,0.7738,0.7738,0.7738,0.7738,0.7738,0.7738,0.7738,0.7738,0.7738,0.7738,0.7738,0.7738,0.78352,0.78352,0.78352,0.78352,0.78352,0.78352,0.78352,0.78352,0.78352,0.78352,0.78352,0.78352,0.78352,0.78352,0.78352,0.78352,0.78352,0.78352,0.78352,0.78352,0.78352,0.78352,0.78352,0.78352,0.78352,0.78352,0.78352,0.78352,0.78352,0.78352,0.78352,0.78352,0.78352,0.78352,0.78352,0.79324,0.79324,0.79324,0.79324,0.79324,0.79324,0.79324,0.79324,0.79324,0.79324,0.79324,0.79324,0.79324,0.79324,0.79324,0.79324,0.79324,0.79324,0.79324,0.79324,0.79324,0.79324,0.79324,0.79324,0.79324,0.79324,0.79324,0.79324,0.79324,0.79324,0.79324,0.79324,0.79324,0.80296,0.80296,0.80296,0.80296,0.80296,0.80296,0.80296,0.80296,0.80296,0.80296,0.80296,0.80296,0.80296,0.80296,0.80296,0.80296,0.80296,0.80296,0.80296,0.80296,0.80296,0.80296,0.80296,0.80296,0.80296,0.80296,0.80296,0.80296,0.80296,0.80296,0.81268,0.81268,0.81268,0.81268,0.81268,0.81268,0.81268,0.81268,0.81268,0.81268,0.81268,0.81268,0.81268,0.81268,0.81268,0.81268,0.81268,0.81268,0.81268,0.81268,0.81268,0.81268,0.81268,0.81268,0.81268,0.81268,0.81268,0.81268,0.81268,0.8224,0.8224,0.8224,0.8224,0.8224,0.8224,0.8224,0.8224,0.8224,0.8224,0.8224,0.8224,0.8224,0.8224,0.8224,0.8224,0.8224,0.8224,0.8224,0.8224,0.8224,0.8224,0.8224,0.8224,0.8224,0.8224,0.8224,0.83212,0.83212,0.83212,0.83212,0.83212,0.83212,0.83212,0.83212,0.83212,0.83212,0.83212,0.83212,0.83212,0.83212,0.83212,0.83212,0.83212,0.83212,0.83212,0.83212,0.83212,0.83212,0.83212,0.83212,0.84184,0.84184,0.84184,0.84184,0.84184,0.84184,0.84184,0.84184,0.84184,0.84184,0.84184,0.84184,0.84184,0.84184,0.84184,0.84184,0.84184,0.84184,0.84184,0.84184,0.84184,0.84184,0.85156,0.85156,0.85156,0.85156,0.85156,0.85156,0.85156,0.85156,0.85156,0.85156,0.85156,0.85156,0.85156,0.85156,0.85156,0.85156,0.85156,0.85156,0.85156,0.85156,0.86128,0.86128,0.86128,0.86128,0.86128,0.86128,0.86128,0.86128,0.86128,0.86128,0.86128,0.86128,0.86128,0.86128,0.86128,0.86128,0.86128],"z":[23.0974339127915,23.2226948248453,23.3479557368991,23.4732166489528,23.5984775610066,23.7237384730604,24.2196760860311,25.0799528423424,25.9402295986537,26.800506354965,27.6607831112763,28.5210598675876,29.3813366238988,30.2416133802101,31.1018901365214,31.9621668928327,22.8372307801331,22.9624916921868,23.0877526042406,23.2130135162944,23.3382744283481,23.4635353404019,23.5887962524557,24.0847338654264,24.9450106217377,25.805287378049,26.6655641343603,27.5258408906716,28.3861176469829,29.2463944032942,30.1066711596055,30.9669479159167,31.827224672228,32.6875014285393,33.5477781848506,34.4080549411619,35.2683316974732,36.1286084537845,22.5770276474746,22.7022885595284,22.8275494715822,22.9528103836359,23.0780712956897,23.2033322077435,23.3285931197972,23.453854031851,23.9497916448217,24.810068401133,25.6703451574443,26.5306219137556,27.3908986700669,28.2511754263782,29.1114521826895,29.9717289390008,30.8320056953121,31.6922824516234,32.5525592079346,33.4128359642459,34.2731127205572,35.1333894768685,35.9936662331798,36.8539429894911,22.3168245148162,22.4420854268699,22.5673463389237,22.6926072509775,22.8178681630312,22.943129075085,23.0683899871388,23.1936508991925,23.3189118112463,23.8148494242171,24.6751261805284,25.5354029368396,26.3956796931509,27.2559564494622,28.1162332057735,28.9765099620848,29.8367867183961,30.6970634747074,31.5573402310187,32.41761698733,33.2778937436413,34.1381704999525,34.9984472562638,35.8587240125751,36.7190007688864,37.5792775251977,22.0566213821577,22.1818822942115,22.3071432062653,22.432404118319,22.5576650303728,22.6829259424266,22.8081868544803,22.9334477665341,23.0587086785879,23.1839695906416,23.6799072036124,24.5401839599237,25.400460716235,26.2607374725462,27.1210142288575,27.9812909851688,28.8415677414801,29.7018444977914,30.5621212541027,31.422398010414,32.2826747667253,33.1429515230366,34.0032282793479,34.8635050356591,35.7237817919704,36.5840585482817,37.444335304593,38.3046120609043,21.7964182494993,21.921679161553,22.0469400736068,22.1722009856606,22.2974618977143,22.4227228097681,22.5479837218219,22.6732446338756,22.7985055459294,22.9237664579832,23.0490273700369,23.5449649830077,24.405241739319,25.2655184956303,26.1257952519416,26.9860720082529,27.8463487645641,28.7066255208754,29.5669022771867,30.427179033498,31.2874557898093,32.1477325461206,33.0080093024319,33.8682860587432,34.7285628150545,35.5888395713657,36.449116327677,37.3093930839883,38.1696698402996,21.6614760288946,21.7867369409483,21.9119978530021,22.0372587650559,22.1625196771096,22.2877805891634,22.4130415012172,22.5383024132709,22.6635633253247,22.7888242373785,22.9140851494322,23.410022762403,24.2702995187143,25.1305762750256,25.9908530313369,26.8511297876482,27.7114065439595,28.5716833002707,29.431960056582,30.2922368128933,31.1525135692046,32.0127903255159,32.8730670818272,33.7333438381385,34.5936205944498,35.4538973507611,36.3141741070724,37.1744508633836,38.0347276196949,38.8950043760062,21.4012728962361,21.5265338082899,21.6517947203437,21.7770556323974,21.9023165444512,22.027577456505,22.1528383685587,22.2780992806125,22.4033601926663,22.52862110472,22.6538820167738,22.7791429288276,23.2750805417983,24.1353572981096,24.9956340544209,25.8559108107322,26.7161875670435,27.5764643233548,28.4367410796661,29.2970178359774,30.1572945922886,31.0175713485999,31.8778481049112,32.7381248612225,33.5984016175338,34.4586783738451,35.3189551301564,36.1792318864677,37.039508642779,37.8997853990902,38.7600621554015,21.1410697635777,21.2663306756314,21.3915915876852,21.516852499739,21.6421134117927,21.7673743238465,21.8926352359003,22.017896147954,22.1431570600078,22.2684179720616,22.3936788841153,22.5189397961691,22.6442007082229,23.1401383211936,24.0004150775049,24.8606918338162,25.7209685901275,26.5812453464388,27.4415221027501,28.3017988590614,29.1620756153727,30.022352371684,30.8826291279952,31.7429058843065,32.6031826406178,33.4634593969291,34.3237361532404,35.1840129095517,36.044289665863,36.9045664221743,37.7648431784856,38.6251199347969,39.4853966911082,21.006127542973,21.1313884550268,21.2566493670805,21.3819102791343,21.5071711911881,21.6324321032418,21.7576930152956,21.8829539273494,22.0082148394031,22.1334757514569,22.2587366635107,22.3839975755644,22.5092584876182,23.005196100589,23.8654728569002,24.7257496132115,25.5860263695228,26.4463031258341,27.3065798821454,28.1668566384567,29.027133394768,29.8874101510793,30.7476869073906,31.6079636637019,32.4682404200131,33.3285171763244,34.1887939326357,35.049070688947,35.9093474452583,36.7696242015696,37.6299009578809,38.4901777141922,39.3504544705035,40.2107312268148,20.7459244103145,20.8711853223683,20.9964462344221,21.1217071464758,21.2469680585296,21.3722289705834,21.4974898826371,21.6227507946909,21.7480117067447,21.8732726187984,21.9985335308522,22.123794442906,22.2490553549597,22.3743162670135,22.8702538799843,23.7305306362956,24.5908073926068,25.4510841489181,26.3113609052294,27.1716376615407,28.031914417852,28.8921911741633,29.7524679304746,30.6127446867859,31.4730214430972,32.3332981994085,33.1935749557197,34.053851712031,34.9141284683423,35.7744052246536,36.6346819809649,37.4949587372762,38.3552354935875,39.2155122498988,40.0757890062101,20.4857212776561,20.6109821897099,20.7362431017636,20.8615040138174,20.9867649258712,21.1120258379249,21.2372867499787,21.3625476620325,21.4878085740862,21.61306948614,21.7383303981938,21.8635913102475,21.9888522223013,22.1141131343551,22.2393740464088,22.7353116593796,23.5955884156909,24.4558651720022,25.3161419283135,26.1764186846247,27.036695440936,27.8969721972473,28.7572489535586,29.6175257098699,30.4778024661812,31.3380792224925,32.1983559788038,33.0586327351151,33.9189094914263,34.7791862477376,35.6394630040489,36.4997397603602,37.3600165166715,38.2202932729828,39.0805700292941,39.9408467856054,40.8011235419167,20.2255181449976,20.3507790570514,20.4760399691052,20.6013008811589,20.7265617932127,20.8518227052665,20.9770836173202,21.102344529374,21.2276054414278,21.3528663534815,21.4781272655353,21.6033881775891,21.7286490896428,21.8539100016966,21.9791709137504,22.1044318258041,22.6003694387749,23.4606461950862,24.3209229513975,25.1811997077088,26.0414764640201,26.9017532203314,27.7620299766426,28.6223067329539,29.4825834892652,30.3428602455765,31.2031370018878,32.0634137581991,32.9236905145104,33.7839672708217,34.644244027133,35.5045207834442,36.3647975397555,37.2250742960668,38.0853510523781,38.9456278086894,39.8059045650007,40.666181321312,20.090575924393,20.2158368364467,20.3410977485005,20.4663586605543,20.591619572608,20.7168804846618,20.8421413967156,20.9674023087693,21.0926632208231,21.2179241328769,21.3431850449306,21.4684459569844,21.5937068690382,21.7189677810919,21.8442286931457,21.9694896051995,22.4654272181702,23.3257039744815,24.1859807307928,25.0462574871041,25.9065342434154,26.7668109997267,27.6270877560379,28.4873645123492,29.3476412686605,30.2079180249718,31.0681947812831,31.9284715375944,32.7887482939057,33.649025050217,34.5093018065283,35.3695785628396,36.2298553191509,37.0901320754621,37.9504088317734,38.8106855880847,39.670962344396,40.5312391007073,19.8303727917345,19.9556337037883,20.080894615842,20.2061555278958,20.3314164399496,20.4566773520033,20.5819382640571,20.7071991761109,20.8324600881646,20.9577210002184,21.0829819122722,21.2082428243259,21.3335037363797,21.4587646484335,21.5840255604872,21.709286472541,21.8345473845948,22.3304849975655,23.1907617538768,24.0510385101881,24.9113152664994,25.7715920228107,26.631868779122,27.4921455354333,28.3524222917446,29.2126990480558,30.0729758043671,30.9332525606784,31.7935293169897,32.653806073301,33.5140828296123,34.3743595859236,35.2346363422349,36.0949130985462,36.9551898548575,37.8154666111688,38.6757433674801,39.5360201237913,40.3962968801026,19.5701696590761,19.6954305711298,19.8206914831836,19.9459523952374,20.0712133072911,20.1964742193449,20.3217351313987,20.4469960434524,20.5722569555062,20.69751786756,20.8227787796137,20.9480396916675,21.0733006037213,21.198561515775,21.3238224278288,21.4490833398826,21.5743442519363,21.6996051639901,22.1955427769608,23.0558195332721,23.9160962895834,24.7763730458947,25.636649802206,26.4969265585173,27.3572033148286,28.2174800711399,29.0777568274512,29.9380335837625,30.7983103400737,31.658587096385,32.5188638526963,33.3791406090076,34.2394173653189,35.0996941216302,35.9599708779415,36.8202476342528,37.6805243905641,38.5408011468754,39.4010779031866,40.2613546594979,19.3099665264176,19.4352274384714,19.5604883505251,19.6857492625789,19.8110101746327,19.9362710866864,20.0615319987402,20.186792910794,20.3120538228477,20.4373147349015,20.5625756469553,20.687836559009,20.8130974710628,20.9383583831166,21.0636192951703,21.1888802072241,21.3141411192779,21.4394020313316,21.5646629433854,22.0606005563562,22.9208773126675,23.7811540689787,24.64143082529,25.5017075816013,26.3619843379126,27.2222610942239,28.0825378505352,28.9428146068465,29.8030913631578,30.6633681194691,31.5236448757803,32.3839216320916,33.2441983884029,34.1044751447142,34.9647519010255,35.8250286573368,36.6853054136481,37.5455821699594,38.4058589262707,39.266135682582,40.1264124388932,19.1750243058129,19.3002852178667,19.4255461299204,19.5508070419742,19.676067954028,19.8013288660818,19.9265897781355,20.0518506901893,20.177111602243,20.3023725142968,20.4276334263506,20.5528943384044,20.6781552504581,20.8034161625119,20.9286770745657,21.0539379866194,21.1791988986732,21.304459810727,21.4297207227807,21.9256583357515,22.7859350920628,23.6462118483741,24.5064886046853,25.3667653609966,26.2270421173079,27.0873188736192,27.9475956299305,28.8078723862418,29.6681491425531,30.5284258988644,31.3887026551757,32.248979411487,33.1092561677982,33.9695329241095,34.8298096804208,35.6900864367321,36.5503631930434,37.4106399493547,38.270916705666,39.1311934619773,39.9914702182886,18.9148211731545,19.0400820852082,19.165342997262,19.2906039093158,19.4158648213695,19.5411257334233,19.6663866454771,19.7916475575308,19.9169084695846,20.0421693816384,20.1674302936921,20.2926912057459,20.4179521177997,20.5432130298534,20.6684739419072,20.793734853961,20.9189957660147,21.0442566780685,21.1695175901223,21.294778502176,21.7907161151468,22.6509928714581,23.5112696277694,24.3715463840807,25.2318231403919,26.0920998967032,26.9523766530145,27.8126534093258,28.6729301656371,29.5332069219484,30.3934836782597,31.253760434571,32.1140371908823,32.9743139471936,33.8345907035049,34.6948674598161,35.5551442161274,36.4154209724387,37.27569772875,38.1359744850613,38.9962512413726,39.8565279976839,18.654618040496,18.7798789525498,18.9051398646035,19.0304007766573,19.1556616887111,19.2809226007648,19.4061835128186,19.5314444248724,19.6567053369261,19.7819662489799,19.9072271610337,20.0324880730874,20.1577489851412,20.283009897195,20.4082708092487,20.5335317213025,20.6587926333563,20.78405354541,20.9093144574638,21.0345753695176,21.1598362815713,21.6557738945421,22.5160506508534,23.3763274071647,24.236604163476,25.0968809197873,25.9571576760986,26.8174344324098,27.6777111887211,28.5379879450324,29.3982647013437,30.258541457655,31.1188182139663,31.9790949702776,32.8393717265889,33.6996484829002,34.5599252392115,35.4202019955228,36.280478751834,37.1407555081453,38.0010322644566,38.8613090207679,39.7215857770792,18.5196758198913,18.6449367319451,18.7701976439989,18.8954585560526,19.0207194681064,19.1459803801602,19.2712412922139,19.3965022042677,19.5217631163215,19.6470240283752,19.772284940429,19.8975458524828,20.0228067645365,20.1480676765903,20.2733285886441,20.3985895006978,20.5238504127516,20.6491113248054,20.7743722368591,20.8996331489129,21.0248940609667,21.5208316739374,22.3811084302487,23.24138518656,24.1016619428713,24.9619386991826,25.8222154554939,26.6824922118052,27.5427689681165,28.4030457244277,29.263322480739,30.1235992370503,30.9838759933616,31.8441527496729,32.7044295059842,33.5647062622955,34.4249830186068,35.2852597749181,36.1455365312293,37.0058132875406,37.8660900438519,38.7263668001632,39.5866435564745,18.2594726872329,18.3847335992866,18.5099945113404,18.6352554233942,18.7605163354479,18.8857772475017,19.0110381595555,19.1362990716092,19.261559983663,19.3868208957168,19.5120818077705,19.6373427198243,19.7626036318781,19.8878645439318,20.0131254559856,20.1383863680394,20.2636472800931,20.3889081921469,20.5141691042007,20.6394300162544,20.7646909283082,20.889951840362,21.3858894533327,22.246166209644,23.1064429659553,23.9667197222666,24.8269964785779,25.6872732348892,26.5475499912005,27.4078267475118,28.2681035038231,29.1283802601343,29.9886570164456,30.8489337727569,31.7092105290682,32.5694872853795,33.4297640416908,34.2900407980021,35.1503175543134,36.0105943106247,36.870871066936,37.7311478232473,38.5914245795585,39.4517013358698,17.9992695545744,18.1245304666282,18.249791378682,18.3750522907357,18.5003132027895,18.6255741148433,18.750835026897,18.8760959389508,19.0013568510046,19.1266177630583,19.2518786751121,19.3771395871659,19.5024004992196,19.6276614112734,19.7529223233272,19.8781832353809,20.0034441474347,20.1287050594885,20.2539659715422,20.379226883596,20.5044877956498,20.6297487077035,20.7550096197573,21.2509472327281,22.1112239890393,22.9715007453506,23.8317775016619,24.6920542579732,25.5523310142845,26.4126077705958,27.2728845269071,28.1331612832184,28.9934380395297,29.853714795841,30.7139915521522,31.5742683084635,32.4345450647748,33.2948218210861,34.1550985773974,35.0153753337087,35.87565209002,36.7359288463313,37.5962056026426,38.4564823589539,39.3167591152651,17.739066421916,17.8643273339697,17.9895882460235,18.1148491580773,18.240110070131,18.3653709821848,18.4906318942386,18.6158928062923,18.7411537183461,18.8664146303999,18.9916755424536,19.1169364545074,19.2421973665612,19.3674582786149,19.4927191906687,19.6179801027225,19.7432410147762,19.86850192683,19.9937628388838,20.1190237509375,20.2442846629913,20.3695455750451,20.4948064870988,20.6200673991526,21.1160050121234,21.9762817684347,22.8365585247459,23.6968352810572,24.5571120373685,25.4173887936798,26.2776655499911,27.1379423063024,27.9982190626137,28.858495818925,29.7187725752363,30.5790493315476,31.4393260878588,32.2996028441701,33.1598796004814,34.0201563567927,34.880433113104,35.7407098694153,36.6009866257266,37.4612633820379,38.3215401383492,39.1818168946605,17.6041242013113,17.7293851133651,17.8546460254188,17.9799069374726,18.1051678495264,18.2304287615801,18.3556896736339,18.4809505856877,18.6062114977414,18.7314724097952,18.856733321849,18.9819942339027,19.1072551459565,19.2325160580103,19.357776970064,19.4830378821178,19.6082987941716,19.7335597062253,19.8588206182791,19.9840815303329,20.1093424423866,20.2346033544404,20.3598642664942,20.4851251785479,20.9626169262952,21.7863173259951,22.6100177256949,23.4337181253947,24.2574185250946,25.0811189247944,25.9048193244942,26.7285197241941,27.5522201238939,28.3759205235938,29.1996209232936,30.0233213229935,30.8470217226933,31.6707221223931,32.494422522093,33.3181229217928,34.1418233214927,34.9655237211925,35.7892241208923,36.6129245205922,37.436624920292,38.2603253199919,17.3439210686528,17.4691819807066,17.5944428927604,17.7197038048141,17.8449647168679,17.9702256289217,18.0954865409754,18.2207474530292,18.346008365083,18.4712692771367,18.5965301891905,18.7217911012443,18.847052013298,18.9723129253518,19.0975738374056,19.2228347494593,19.3480956615131,19.4733565735669,19.5986174856206,19.7238783976744,19.8491393097282,19.9744002217819,20.0996611338357,20.2249220458895,20.3501829579432,20.7828512531975,21.5176711063315,22.2524909594655,22.9873108125995,23.7221306657335,24.4569505188676,25.1917703720016,25.9265902251356,26.6614100782696,27.3962299314037,28.1310497845377,28.8658696376717,29.6006894908057,30.3355093439397,31.0703291970738,31.8051490502078,32.5399689033418,33.2747887564758,34.0096086096098,34.7444284627439,35.4792483158779,36.2140681690119,17.2089788480482,17.3342397601019,17.4595006721557,17.5847615842095,17.7100224962632,17.835283408317,17.9605443203708,18.0858052324245,18.2110661444783,18.3363270565321,18.4615879685858,18.5868488806396,18.7121097926934,18.8373707047471,18.9626316168009,19.0878925288547,19.2131534409084,19.3384143529622,19.463675265016,19.5889361770697,19.7141970891235,19.8394580011773,19.964718913231,20.0899798252848,20.2152407373386,20.6030855800997,21.2490248866679,21.8949641932361,22.5409034998043,23.1868428063725,23.8327821129407,24.4787214195089,25.1246607260771,25.7706000326453,26.4165393392135,27.0624786457817,27.7084179523499,28.3543572589181,29.0002965654863,29.6462358720545,30.2921751786227,30.938114485191,31.5840537917591,32.2299930983274,32.8759324048956,33.5218717114638,34.1678110180319,17.0740366274435,17.1992975394972,17.324558451551,17.4498193636048,17.5750802756585,17.7003411877123,17.8256020997661,17.9508630118198,18.0761239238736,18.2013848359274,18.3266457479811,18.4519066600349,18.5771675720887,18.7024284841424,18.8276893961962,18.95295030825,19.0782112203037,19.2034721323575,19.3287330444113,19.453993956465,19.5792548685188,19.7045157805726,19.8297766926263,19.9550376046801,20.0802985167339,20.423319907002,20.9803786670044,21.5374374270068,22.0944961870091,22.6515549470115,23.2086137070139,23.7656724670163,24.3227312270187,24.879789987021,25.4368487470234,25.9939075070258,26.5509662670282,27.1080250270306,27.665083787033,28.2221425470353,28.7792013070377,29.3362600670401,29.8933188270425,30.4503775870449,31.0074363470473,31.5644951070496,32.121553867052,16.813833494785,16.9390944068388,17.0643553188926,17.1896162309463,17.3148771430001,17.4401380550539,17.5653989671076,17.6906598791614,17.8159207912152,17.9411817032689,18.0664426153227,18.1917035273765,18.3169644394302,18.442225351484,18.5674862635378,18.6927471755915,18.8180080876453,18.9432689996991,19.0685299117528,19.1937908238066,19.3190517358604,19.4443126479141,19.5695735599679,19.6948344720217,19.8200953840754,19.9453562961292,20.2435542339043,20.7117324473408,21.1799106607774,21.648088874214,22.1162670876505,22.5844453010871,23.0526235145236,23.5208017279602,23.9889799413968,24.4571581548333,24.9253363682699,25.3935145817064,25.861692795143,26.3298710085796,26.7980492220161,27.2662274354527,27.7344056488893,28.2025838623258,28.6707620757624,29.1389402891989,29.6071185026355,30.0752967160721,16.6788912741803,16.8041521862341,16.9294130982879,17.0546740103416,17.1799349223954,17.3051958344492,17.4304567465029,17.5557176585567,17.6809785706105,17.8062394826642,17.931500394718,18.0567613067718,18.1820222188255,18.3072831308793,18.4325440429331,18.5578049549868,18.6830658670406,18.8083267790944,18.9335876911481,19.0588486032019,19.1841095152557,19.3093704273094,19.4346313393632,19.559892251417,19.6851531634707,19.8104140755245,20.0637885608065,20.4430862276773,20.822383894548,21.2016815614188,21.5809792282895,21.9602768951602,22.339574562031,22.7188722289017,23.0981698957725,23.4774675626432,23.8567652295139,24.2360628963847,24.6153605632554,24.9946582301262,25.3739558969969,25.7532535638676,26.1325512307384,26.5118488976091,26.8911465644799,27.2704442313506,27.6497418982214,28.0290395650921,16.5439490535756,16.6692099656294,16.7944708776832,16.9197317897369,17.0449927017907,17.1702536138445,17.2955145258982,17.420775437952,17.5460363500058,17.6712972620596,17.7965581741133,17.9218190861671,18.0470799982208,18.1723409102746,18.2976018223284,18.4228627343822,18.5481236464359,18.6733845584897,18.7986454705435,18.9239063825972,19.049167294651,19.1744282067048,19.2996891187585,19.4249500308123,19.5502109428661,19.6754718549198,19.8840228877088,20.1744400080137,20.4648571283186,20.7552742486236,21.0456913689285,21.3361084892334,21.6265256095383,21.9169427298432,22.2073598501482,22.4977769704531,22.788194090758,23.0786112110629,23.3690283313678,23.6594454516728,23.9498625719777,24.2402796922826,24.5306968125875,24.8211139328924,25.1115310531974,25.4019481735023,25.6923652938072,25.9827824141121,16.2837459209172,16.409006832971,16.5342677450247,16.6595286570785,16.7847895691323,16.910050481186,17.0353113932398,17.1605723052936,17.2858332173473,17.4110941294011,17.5363550414549,17.6616159535086,17.7868768655624,17.9121377776162,18.0373986896699,18.1626596017237,18.2879205137775,18.4131814258312,18.538442337885,18.6637032499388,18.7889641619925,18.9142250740463,19.0394859861001,19.1647468981538,19.2900078102076,19.4152687222614,19.5405296343151,19.7042572146111,19.9057937883502,20.1073303620893,20.3088669358284,20.5104035095675,20.7119400833066,20.9134766570457,21.1150132307848,21.3165498045239,21.518086378263,21.7196229520021,21.9211595257412,22.1226960994803,22.3242326732194,22.5257692469585,22.7273058206976,22.9288423944367,23.1303789681758,23.3319155419149,23.533452115654,23.7349886893931,23.9365252631322,16.1488037003125,16.2740646123663,16.39932552442,16.5245864364738,16.6498473485276,16.7751082605813,16.9003691726351,17.0256300846889,17.1508909967426,17.2761519087964,17.4014128208502,17.5266737329039,17.6519346449577,17.7771955570115,17.9024564690652,18.027717381119,18.1529782931728,18.2782392052265,18.4035001172803,18.5287610293341,18.6540219413878,18.7792828534416,18.9045437654954,19.0298046775492,19.1550655896029,19.2803265016567,19.4055874137104,19.5244915415133,19.6371475686866,19.7498035958599,19.8624596230332,19.9751156502064,20.0877716773797,20.200427704553,20.3130837317263,20.4257397588996,20.5383957860728,20.6510518132461,20.7637078404194,20.8763638675927,20.989019894766,21.1016759219393,21.2143319491125,21.3269879762858,21.4396440034591,21.5523000306324,21.6649560578057,21.7776120849789,21.8902681121522,16.0650258195883,16.190286731642,16.3155476436958,16.4408085557496,16.5660694678033,16.6913303798571,16.8165912919109,16.9418522039646,17.0671131160184,17.1923740280722,17.3176349401259,17.4428958521797,17.5681567642335,17.6934176762872,17.818678588341,17.9439395003948,18.0692004124485,18.1944613245023,18.3197222365561,18.4449831486098,18.5702440606636,18.6955049727174,18.8207658847711,18.9460267968249,19.0712877088787,19.1965486209324,19.3218095329862,19.395890208296,19.4196656889035,19.4434411695109,19.4672166501184,19.4909921307259,19.5147676113333,19.5385430919408,19.5623185725482,19.5860940531557,19.6098695337632,19.6336450143706,19.6574204949781,19.6811959755855,19.704971456193,19.7287469368005,19.7525224174079,19.7762978980154,19.8000733786228,19.8238488592303,19.8476243398378,19.8713998204452,19.8951753010527,16.1306148020633,16.2558757141171,16.3811366261709,16.5063975382246,16.6316584502784,16.7569193623322,16.8821802743859,17.0074411864397,17.1327020984935,17.2579630105472,17.383223922601,17.5084848346548,17.6337457467085,17.7590066587623,17.8842675708161,18.0095284828698,18.1347893949236,18.2600503069774,18.3853112190311,18.5105721310849,18.6358330431387,18.7610939551924,18.8863548672462,19.0116157793,19.1368766913537,19.2621376034075,19.3873985154613,19.416655738278,19.3515506723197,19.2864456063613,19.221340540403,19.1562354744446,19.0911304084862,19.0260253425279,18.9609202765695,18.8958152106112,18.8307101446528,18.7656050786944,18.7005000127361,18.6353949467777,18.5702898808194,18.505184814861,18.4400797489026,18.3749746829443,18.3098696169859,18.2447645510276,18.1796594850692,18.1145544191108,16.3214646965922,16.446725608646,16.5719865206997,16.6972474327535,16.8225083448073,16.947769256861,17.0730301689148,17.1982910809686,17.3235519930223,17.4488129050761,17.5740738171299,17.6993347291836,17.8245956412374,17.9498565532912,18.0751174653449,18.2003783773987,18.3256392894525,18.4509002015062,18.57616111356,18.7014220256138,18.8266829376675,18.9519438497213,19.0772047617751,19.2024656738288,19.3277265858826,19.4529874979364,19.4374212682601,19.2834356557359,19.1294500432117,18.9754644306875,18.8214788181634,18.6674932056392,18.513507593115,18.3595219805908,18.2055363680666,18.0515507555425,17.8975651430183,17.7435795304941,17.5895939179699,17.4356083054457,17.2816226929216,17.1276370803974,16.9736514678732,16.819665855349,16.6656802428248,16.5116946303007,16.512314591121,16.6375755031748,16.7628364152286,16.8880973272823,17.0133582393361,17.1386191513899,17.2638800634436,17.3891409754974,17.5144018875512,17.6396627996049,17.7649237116587,17.8901846237125,18.0154455357662,18.14070644782,18.2659673598738,18.3912282719275,18.5164891839813,18.6417500960351,18.7670110080888,18.8922719201426,19.0175328321964,19.1427937442501,19.2680546563039,19.3933155683577,19.5185764804114,19.4581867982421,19.2153206391521,18.9724544800621,18.7295883209721,18.4867221618821,18.2438560027921,18.0009898437021,17.7581236846121,17.5152575255221,17.2723913664321,17.0295252073421,16.7866590482521,16.5437928891621,16.3009267300721,16.0580605709821,15.8151944118921,15.5723282528021,15.3294620937121,15.0865959346221,16.7031644856499,16.8284253977036,16.9536863097574,17.0789472218112,17.2042081338649,17.3294690459187,17.4547299579725,17.5799908700262,17.70525178208,17.8305126941338,17.9557736061875,18.0810345182413,18.2062954302951,18.3315563423488,18.4568172544026,18.5820781664564,18.7073390785101,18.8325999905639,18.9578609026177,19.0831218146714,19.2083827267252,19.333643638779,19.4589045508327,19.5841654628865,19.4789523282241,19.1472056225683,18.8154589169125,18.4837122112567,18.1519655056008,17.820218799945,17.4884720942892,17.1567253886334,16.8249786829776,16.4932319773218,16.1614852716659,15.8297385660101,15.4979918603543,15.1662451546985,14.8344984490427,14.5027517433868,14.171005037731,16.768753468125,16.8940143801787,17.0192752922325,17.1445362042863,17.26979711634,17.3950580283938,17.5203189404476,17.6455798525013,17.7708407645551,17.8961016766089,18.0213625886626,18.1466235007164,18.2718844127702,18.3971453248239,18.5224062368777,18.6476671489315,18.7729280609852,18.898188973039,19.0234498850928,19.1487107971465,19.2739717092003,19.3992326212541,19.5244935333078,19.6497544453616,19.4997178582062,19.0790906059845,18.6584633537629,18.2378361015412,17.8172088493196,17.3965815970979,16.9759543448763,16.5553270926547,16.134699840433,15.7140725882114,15.2934453359898,14.8728180837681,14.4521908315465,14.0315635793248,13.6109363271032,13.1903090748816,16.9596033626538,17.0848642747076,17.2101251867613,17.3353860988151,17.4606470108689,17.5859079229226,17.7111688349764,17.8364297470302,17.9616906590839,18.0869515711377,18.2122124831915,18.3374733952452,18.462734307299,18.5879952193528,18.7132561314065,18.8385170434603,18.9637779555141,19.0890388675678,19.2142997796216,19.3395606916754,19.4648216037291,19.5900825157829,19.7153434278367,19.5204833881882,19.0109755894007,18.5014677906133,17.9919599918258,17.4824521930383,16.9729443942509,16.4634365954634,15.953928796676,15.4444209978885,14.934913199101,14.4254054003136,13.9158976015261,13.4063898027387,12.8968820039512,12.3873742051637,17.1504532571826,17.2757141692364,17.4009750812902,17.5262359933439,17.6514969053977,17.7767578174515,17.9020187295052,18.027279641559,18.1525405536128,18.2778014656665,18.4030623777203,18.5283232897741,18.6535842018278,18.7788451138816,18.9041060259354,19.0293669379891,19.1546278500429,19.2798887620967,19.4051496741504,19.5304105862042,19.655671498258,19.7809324103117,19.5412489181702,18.9428605728169,18.3444722274636,17.7460838821104,17.1476955367571,16.5493071914038,15.9509188460505,15.3525305006972,14.754142155344,14.1557538099907,13.5573654646374,12.9589771192841,12.3605887739308,17.3413031517115,17.4665640637653,17.591824975819,17.7170858878728,17.8423467999266,17.9676077119803,18.0928686240341,18.2181295360879,18.3433904481416,18.4686513601954,18.5939122722492,18.7191731843029,18.8444340963567,18.9696950084105,19.0949559204642,19.220216832518,19.3454777445718,19.4707386566255,19.5959995686793,19.7212604807331,19.8465213927868,19.5620144481522,18.8747455562331,18.187476664314,17.5002077723949,16.8129388804758,16.1256699885567,15.4384010966376,14.7511322047185,14.0638633127994,13.3765944208803,12.6893255289612,12.0020566370421,17.5321530462403,17.6574139582941,17.7826748703479,17.9079357824016,18.0331966944554,18.1584576065092,18.2837185185629,18.4089794306167,18.5342403426705,18.6595012547242,18.784762166778,18.9100230788318,19.0352839908855,19.1605449029393,19.2858058149931,19.4110667270468,19.5363276391006,19.6615885511544,19.7868494632081,19.9121103752619,19.5827799781343,18.8066305396493,18.0304811011644,17.2543316626795,16.4781822241946,15.7020327857097,14.9258833472247,14.1497339087398,13.3735844702549,12.59743503177,17.5977420287154,17.7230029407692,17.8482638528229,17.9735247648767,18.0987856769305,18.2240465889842,18.349307501038,18.4745684130918,18.5998293251455,18.7250902371993,18.8503511492531,18.9756120613068,19.1008729733606,19.2261338854144,19.3513947974681,19.4766557095219,19.6019166215757,19.7271775336294,19.8524384456832,19.977699357737,19.6035455081163,18.7385155230655,17.8734855380148,17.0084555529641,16.1434255679133,15.2783955828626,14.4133655978118,13.5483356127611,12.6833056277104,17.7885919232443,17.913852835298,18.0391137473518,18.1643746594056,18.2896355714593,18.4148964835131,18.5401573955669,18.6654183076206,18.7906792196744,18.9159401317282,19.0412010437819,19.1664619558357,19.2917228678895,19.4169837799432,19.542244691997,19.6675056040508,19.7927665161045,19.9180274281583,20.0432883402121,19.6243110380983,18.6704005064817,17.7164899748652,16.7625794432486,15.8086689116321,14.8547583800155,13.9008478483989,12.9469373167824,17.9794418177731,18.1047027298269,18.2299636418806,18.3552245539344,18.4804854659882,18.6057463780419,18.7310072900957,18.8562682021495,18.9815291142032,19.106790026257,19.2320509383108,19.3573118503645,19.4825727624183,19.6078336744721,19.7330945865258,19.8583554985796,19.9836164106334,20.1088773226871,19.6450765680803,18.6022854898979,17.5594944117156,16.5167033335332,15.4739122553508,14.4311211771684,18.1702917123019,18.2955526243557,18.4208135364095,18.5460744484632,18.671335360517,18.7965962725708,18.9218571846245,19.0471180966783,19.1723790087321,19.2976399207858,19.4229008328396,19.5481617448934,19.6734226569471,19.7986835690009,19.9239444810547,20.0492053931084,20.1744663051622,19.6658420980624,18.5341704733142,17.402498848566,16.2708272238178,15.1391555990696,18.3611416068308,18.4864025188846,18.6116634309383,18.7369243429921,18.8621852550459,18.9874461670996,19.1127070791534,19.2379679912072,19.3632289032609,19.4884898153147,19.6137507273685,19.7390116394222,19.864272551476,19.9895334635298,20.1147943755835,20.2400552876373,19.6866076280444,18.4660554567304,17.2455032854164,16.0249511141023,18.5519915013596,18.6772524134134,18.8025133254672,18.9277742375209,19.0530351495747,19.1782960616285,19.3035569736822,19.428817885736,19.5540787977898,19.6793397098435,19.8046006218973,19.9298615339511,20.0551224460048,20.1803833580586,20.3056442701124,19.7073731580264,18.3979404401466],"type":"mesh3d","frame":null}],"highlight":{"on":"plotly_click","persistent":false,"dynamic":false,"selectize":false,"opacityDim":0.2,"selected":{"opacity":1}},"base_url":"https://plot.ly"},"evals":["config.modeBarButtonsToAdd.0.click"],"jsHooks":{"render":[{"code":"function(el, x) { var ctConfig = crosstalk.var('plotlyCrosstalkOpts').set({\"on\":\"plotly_click\",\"persistent\":false,\"dynamic\":false,\"selectize\":false,\"opacityDim\":0.2,\"selected\":{\"opacity\":1}}); }","data":null}]}}</script>
+
+]
+
+
+---
+class: center, middle, inverse
+
+background-image: url(Images/your-turn.jpg)
+background-position: center
+background-size: contain
+
+???
+
+Image credit: [imgflip](https://imgflip.com/)
+
+
+---
+class: middle
+
+.large[
+
+Retune the previous MARS model using .red[*repeated 10-fold cross-validation*]. Do the results seem to differ much from those obtained previously using repeated 5-fold cross-validation?
+
+(**Hint:** this can be done using `trainControl(method = "repeatedcv", number = 10, repeats = 3)` in the call to `train()`)
+
+]
+
+
+---
+class: middle
+
+.scrollable[
+
+
+```r
+# Tune a MARS model
+set.seed(2045)  # for reprocubility
+boston_mars &lt;- train(
+  x = subset(boston, select = -cmedv),
+  y = boston$cmedv,
+  method = "earth",
+  metric = "Rsquared",
+  trControl =  trainControl(method = "repeatedcv", 
+                            number = 10, repeats = 3),
+  tuneGrid = expand.grid(degree = 1:5, nprune = 50)
+)
+
+# Visualize results
+ggplot(boston_mars) +
+  theme_light()
+```
+
+]
+
+
+---
+class: middle
+
+&lt;img src="Figures/04-Figures/04-mars-boston-caret-3-1.svg" width="80%" style="display: block; margin: auto;" /&gt;
+
+
+---
+
+## Additional resources
+
+.pull-left[
+
+&lt;img src="Images/esl.png" width="80%" style="display: block; margin: auto;" /&gt;
+
+]
+
+.pull-right[
+
+.large[
+
+* [Martian Chronicles: Is MARS better than Neural Networks?](http://citeseerx.ist.psu.edu/viewdoc/summary?doi=10.1.1.375.9523)
+
+* [Friedman's original paper](https://projecteuclid.org/euclid.aos/1176347963)
+
+* [Friedman's follow-up paper (technical report)](https://statistics.stanford.edu/research/fast-mars)
+
+* [Salford System's training videos](https://www.salford-systems.com/products/mars#videos)
+
+]
+
+]
+
+
+---
+
+## Questions?
+
+&lt;img src="Images/chuck-mars.jpg" width="80%" style="display: block; margin: auto;" /&gt;
+    </textarea>
+<script src="libs/remark-latest.min.js"></script>
+<script>var slideshow = remark.create({
+"highlightStyle": "github",
+"highlightLines": true,
+"countIncrementalSlides": false
+});
+if (window.HTMLWidgets) slideshow.on('afterShowSlide', function (slide) {
+  window.dispatchEvent(new Event('resize'));
+});
+(function() {
+  var d = document, s = d.createElement("style"), r = d.querySelector(".remark-slide-scaler");
+  if (!r) return;
+  s.type = "text/css"; s.innerHTML = "@page {size: " + r.style.width + " " + r.style.height +"; }";
+  d.head.appendChild(s);
+})();
+(function(time) {
+  var d2 = function(number) {
+    return ('0' + number).slice(-2); // left-pad 0 to minutes/seconds
+  },
+
+  time_format = function(total) {
+    var secs = Math.abs(total) / 1000;
+    var h = Math.floor(secs / 3600);
+    var m = Math.floor(secs % 3600 / 60);
+    var s = Math.round(secs % 60);
+    var res = d2(m) + ':' + d2(s);
+    if (h > 0) res = h + ':' + res;
+    return res;  // [hh:]mm:ss
+  },
+
+  slide_number_div = function(i) {
+    return document.getElementsByClassName('remark-slide-number').item(i);
+  },
+
+  current_page_number = function(i) {
+    return slide_number_div(i).firstChild.textContent;  // text "i / N"
+  };
+
+  var timer = document.createElement('span'); timer.id = 'slide-time-left';
+  var time_left = time, k = slideshow.getCurrentSlideIndex(),
+      last_page_number = current_page_number(k);
+
+  setInterval(function() {
+    time_left = time_left - 1000;
+    timer.innerHTML = ' ' + time_format(time_left);
+    if (time_left < 0) timer.style.color = 'red';
+  }, 1000);
+
+  slide_number_div(k).appendChild(timer);
+
+  slideshow.on('showSlide', function(slide) {
+    var i = slide.getSlideIndex(), n = current_page_number(i);
+    // reset timer when a new slide is shown and the page number is changed
+    if (last_page_number !== n) {
+      time_left = time; last_page_number = n;
+      timer.innerHTML = ' ' + time_format(time); timer.style.color = null;
+    }
+    slide_number_div(i).appendChild(timer);
+  });
+})(60000);</script>
+
+<script type="text/x-mathjax-config">
+MathJax.Hub.Config({
+  tex2jax: {
+    skipTags: ['script', 'noscript', 'style', 'textarea', 'pre']
+  }
+});
+</script>
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+(function () {
+  var script = document.createElement('script');
+  script.type = 'text/javascript';
+  script.src  = 'https://cdn.bootcss.com/mathjax/2.7.1/MathJax.js?config=TeX-MML-AM_CHTML';
+  if (location.protocol !== 'file:' && /^https?:/.test(script.src))
+    script.src  = script.src.replace(/^https?:/, '');
+  document.getElementsByTagName('head')[0].appendChild(script);
+})();
+</script>
+  </body>
+</html>

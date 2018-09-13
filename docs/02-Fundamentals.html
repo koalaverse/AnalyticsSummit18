@@ -1,0 +1,1105 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Fundamentals of Machine Learning</title>
+    <meta charset="utf-8">
+    <meta name="author" content="Bradley C. Boehmke  and  Brandon M. Greenwell" />
+    <link href="libs/remark-css/default.css" rel="stylesheet" />
+    <link href="libs/remark-css/hygge.css" rel="stylesheet" />
+    <link rel="stylesheet" href="scrollable.css" type="text/css" />
+  </head>
+  <body>
+    <textarea id="source">
+class: center, middle, inverse, title-slide
+
+# Fundamentals of Machine Learning
+### Bradley C. Boehmke </br> and </br> Brandon M. Greenwell
+### 2018/05/12
+
+---
+
+
+
+
+
+## Modeling Process
+
+Before introducing specific algorithms, this module introduces concepts that are useful for any type of machine learning model:
+
+- data splitting
+- feature engineering
+- basic model formulation
+- model evaluation
+- model tuning
+
+
+&lt;img src="Images/modeling_process2.png" width="2391" style="display: block; margin: auto;" /&gt;
+
+---
+class: center, middle, inverse
+
+background-image: url(Images/data_spend_icon.jpg)
+background-size: cover
+
+# Data Spend
+
+---
+
+## Data splitting
+
+How do we "spend" the data to find an optimal model? 
+
+We _typically_ split data into training and test data sets:
+
+*  ***Training Set***: these data are used to estimate model and tune model parameters.
+
+*  ***Test Set***: having chosen a final model, these data are used to estimate its prediction error (generalization error). These data should _not be used during model training_. &lt;img src = "Images/no_bitme.png" style="width:3%;height:3%;"&gt;
+
+&lt;br&gt;
+
+&lt;img src="Images/data_split.png" width="300" style="display: block; margin: auto;" /&gt;
+
+---
+
+## Data splitting
+
+How we spend our data can determine how well our models perform.  
+
+Given a fixed amount of data:
+
+* too much spent in training won't allow us to get a good assessment of predictive performance.  We may find a model that fits the training data very well, but is not generalizable (overfitting)
+
+* too much spent in testing won't allow us to get a good assessment of model parameters
+
+Guidelines...
+
+* Typical splits you hear are 60-40, 70-30, or 80-20.
+
+* Often you hear that size of data determines split.  Partially true; however, also depends on...
+
+    * Signal-to-noise ratio
+
+    * Business decision being answered
+
+
+---
+
+## Mechanics of Data Splitting
+
+There are a few different ways to do the split: _simple random sampling_ and _stratified sampling_ based on the outcome are the most typical.
+
+For stratification:
+
+* **classification**: this would mean sampling within the classes as to preserve the distribution of the outcome in the training and test sets
+
+* **regression**: determine the quartiles of the data set and samples within those artificial groups
+
+Other types of sampling approaches
+
+* Down/Up sampling
+
+* Snowball sampling
+
+* Synthetic Minority Over-sampling Technique (SMOTE)
+
+* Etc.
+
+---
+
+## Implementation of Data Splitting
+
+
+```r
+library(rsample)
+
+# Make sure that you get the same random numbers
+set.seed(123)
+data_split &lt;- initial_split(pdp::boston, prop = .7, strata = "cmedv")
+
+boston_train &lt;- training(data_split)
+boston_test  &lt;- testing(data_split)
+
+nrow(boston_train)/nrow(pdp::boston)
+## [1] 0.7035573
+```
+
+---
+
+## Outcome Distribution
+
+
+```r
+library(ggplot2)
+
+# how do the distributions differ?
+ggplot(boston_train, aes(x = cmedv)) + 
+  geom_density(trim = TRUE) + 
+  geom_density(data = boston_test, trim = TRUE, col = "red") 
+```
+
+&lt;img src="02-Fundamentals_files/figure-html/sampling_dist-1.svg" style="display: block; margin: auto;" /&gt;
+
+
+---
+
+class: center, middle, inverse
+
+background-image: url(http://amsterdammakerfestival.nl/wp-content/uploads/2016/08/the-challenge.png)
+
+
+---
+
+## Your Turn!
+
+Create training (70%) and test (30%) sets for the `AmesHousing::make_ames()` data. Stratify on the `Sale_Price` variable and visualize this variable for the training and testing sets to see if their distributions are similar.
+
+---
+
+## Solution
+
+
+```r
+# Ames housing data
+ames &lt;- AmesHousing::make_ames()
+
+# create reproducible splits
+set.seed(123)
+data_split &lt;- initial_split(ames, prop = .7, strata = "Sale_Price")
+ames_train &lt;- training(data_split)
+ames_test  &lt;- testing(data_split)
+nrow(ames_train)/nrow(ames)
+## [1] 0.7010239
+
+# compare distributions
+ggplot(ames_train, aes(x = Sale_Price)) + 
+  geom_density(trim = TRUE) + 
+  geom_density(data = ames_test, trim = TRUE, col = "red")
+```
+
+&lt;img src="02-Fundamentals_files/figure-html/solution1-1.svg" style="display: block; margin: auto;" /&gt;
+
+
+---
+
+class: center, middle, inverse
+
+background-image: url(Images/engineering_icon.jpg)
+background-size: cover
+
+# Feature Engineering
+
+---
+
+## Feature Engineering
+
+Pre-processing our features is often a requirement for many algorithms...plus it can greatly increase performance 🙌
+
+Feature engineering can include:
+
+* transformations of variables
+
+* alternate encodings of a variable
+
+* elimination of low/zero variance predictors
+
+* collapsing of correlated variables
+
+&lt;br&gt;&lt;br&gt;&lt;br&gt;
+
+.full-width[.content-box-blue[.bolder[.center[Feature engineering can include a wide variety of pre-processing steps, this section covers just a few that you will continuously see throughout this training.]]]]
+
+
+
+---
+
+## One-hot encoding
+
+* Some models require all variables to be numeric.
+
+* Some packages automate this process (i.e. `caret`, `h2o`) while others do not (i.e. `glmnet`, `keras`)
+
+* We can one-hot encode with `caret::dummyVars` (provides full-rank encoding and 1-to-1 dummy encoding)
+
+
+```r
+# full rank 
+full_rank &lt;- dummyVars(~ ., boston_train, fullRank = TRUE)
+boston_train &lt;- predict(full_rank, boston_train) %&gt;% as.data.frame()
+boston_test  &lt;- predict(full_rank, boston_test) %&gt;% as.data.frame()
+
+# 1-to-1 dummy encode (less than full rank)
+*one_hot &lt;- dummyVars(~ ., boston_train, fullRank = FALSE)
+boston_train &lt;- predict(one_hot, boston_train) %&gt;% as.data.frame()
+boston_test  &lt;- predict(one_hot, boston_test) %&gt;% as.data.frame()
+```
+
+
+
+
+.full-width[.content-box-blue[.bolder[.center[For classification problems we do not want to one-hot encode our response variable! 😨]]]]
+
+
+---
+
+## Response Transformation
+
+Adjusting the distribution of variables by using a **transformation** can lead to a big improvement. 
+
+
+__Normalizing response variable__
+
+
+```r
+# log transformation
+train_y &lt;- log(boston_train$cmedv)
+test_y  &lt;- log(boston_test$cmedv)
+
+# Box Cox transformation
+*lambda  &lt;- forecast::BoxCox.lambda(boston_train$cmedv)
+train_y &lt;- forecast::BoxCox(boston_train$cmedv, lambda)
+test_y  &lt;- forecast::BoxCox(boston_test$cmedv, lambda)
+
+# Inverse Box Cox
+inv_box_cox &lt;- function(x, lambda) {
+  if (lambda == 0) exp(x) else (lambda*x + 1)^(1/lambda) 
+}
+```
+
+
+.full-width[.content-box-blue[.bolder[.center[We use training set lambda to minimize data leakage! 💧]]]]
+
+
+---
+
+## Feature Transformation
+
+Adjusting the distribution of variables by using a **transformation** can lead to a big improvement. 
+
+__Normalizing features__
+
+* Some models (_K_-NN, SVMs, PLS, neural networks) require that the features have the same units. **Centering** and **scaling** can be used for this purpose. 
+
+* Its important to standardize the test feature sets based on the mean and standard deviation of the training features to minimize data leakage.
+
+
+
+```r
+features &lt;- setdiff(names(boston_train), "cmedv")
+
+# pre-process estimation based on training features
+pre_process &lt;- caret::preProcess(
+  x      = boston_train[, features],
+* method = c("BoxCox", "center", "scale")
+  )
+
+# apply to both training &amp; test
+train_x &lt;- predict(pre_process, boston_train[, features])
+test_x  &lt;- predict(pre_process, boston_test[, features])
+```
+
+
+---
+
+## Alternative Feature Transformation
+
+* Removing near-zero or zero variance variables
+
+* Collapsing highly correlated variables with PCA
+
+* etc.
+
+
+```r
+features &lt;- setdiff(names(boston_train), "cmedv")
+
+# pre-process estimation based on training features
+pre_process &lt;- caret::preProcess(
+  x      = boston_train[, features],
+* method = c("BoxCox", "center", "scale", "pca", "nzv", "zv")
+  )
+
+# apply to both training &amp; test
+train_x &lt;- predict(pre_process, boston_train[, features])
+test_x  &lt;- predict(pre_process, boston_test[, features])
+```
+
+
+.full-width[.content-box-blue[.bolder[.center[Check out `?caret::preProcess` for the many options it offers.]]]]
+
+
+
+---
+
+class: center, middle, inverse
+
+background-image: url(http://amsterdammakerfestival.nl/wp-content/uploads/2016/08/the-challenge.png)
+
+
+---
+
+## Your Turn!
+
+Perform the following feature engineering on your Ames data:
+
+* __Response variable__
+
+  - Normalize
+  
+* __Predictor variables__
+
+  - One-hot encode
+  
+  - Standardize (center &amp; scale)
+  
+  - Remove zero-variance variables
+  
+---
+
+## Solution
+
+__Normalize response variable__
+
+
+```r
+# transform response
+lambda  &lt;- forecast::BoxCox.lambda(ames_train$Sale_Price)
+train_y &lt;- forecast::BoxCox(ames_train$Sale_Price, lambda)
+test_y  &lt;- forecast::BoxCox(ames_test$Sale_Price, lambda)
+
+# compare
+par(mfrow = c(1, 2))
+hist(ames_train$Sale_Price, breaks = 30, main = "Untransformed")
+hist(train_y, breaks = 30, main = "Transformed")
+```
+
+&lt;img src="02-Fundamentals_files/figure-html/solution2a-1.svg" style="display: block; margin: auto;" /&gt;
+
+
+---
+
+## Solution
+
+__Predictor variables__
+
+
+```r
+# one-hot encode
+one_hot &lt;- dummyVars(~ ., ames_train, fullRank = FALSE)
+train_x &lt;- predict(one_hot, ames_train) %&gt;% as.data.frame()
+test_x  &lt;- predict(one_hot, ames_test) %&gt;% as.data.frame()
+
+# pre-processing steps
+pre_process &lt;- caret::preProcess(
+  train_x,
+  method = c("center", "scale", "zv")
+)
+
+# apply pre-processing
+train_x &lt;- predict(pre_process, train_x)
+test_x  &lt;- predict(pre_process, test_x)
+
+# common dimensions
+dim(train_x)
+## [1] 2054  346
+dim(test_x)
+## [1] 876 346
+```
+
+
+---
+class: center, middle, inverse
+
+background-image: url(Images/model_formulation.jpg)
+background-size: cover
+
+# Model Formulation
+
+---
+
+
+## Packages used
+
+* There are ___many___ packages to perform machine learning and there are almost always more than one to perform each algorithm.
+
+* There are often pros and cons for each package
+
+* This training will try to expose you to many of the more common packages for each algorithm but realize there are *more ways than one to skin a* 🙀
+
+.scrollable[
+
+.pull-left[
+
+**Built-in `lm` approach:**
+
+
+```r
+m1.base &lt;- lm(cmedv ~ ., data = boston_train)
+
+summary(m1.base)
+## 
+## Call:
+## lm(formula = cmedv ~ ., data = boston_train)
+## 
+## Residuals:
+##     Min      1Q  Median      3Q     Max 
+## -15.673  -2.736  -0.593   1.943  25.502 
+## 
+## Coefficients: (1 not defined because of singularities)
+##               Estimate Std. Error t value Pr(&gt;|t|)    
+## (Intercept) -3.079e+02  3.710e+02  -0.830 0.407125    
+## lon         -2.847e+00  4.027e+00  -0.707 0.480073    
+## lat          3.319e+00  4.647e+00   0.714 0.475549    
+## crim        -1.131e-01  5.042e-02  -2.242 0.025575 *  
+## zn           5.430e-02  1.687e-02   3.220 0.001407 ** 
+## indus       -1.992e-02  7.639e-02  -0.261 0.794483    
+## chas.0      -2.425e+00  1.061e+00  -2.285 0.022946 *  
+## chas.1              NA         NA      NA       NA    
+## nox         -1.646e+01  4.742e+00  -3.472 0.000584 ***
+## rm           4.128e+00  5.227e-01   7.896 4.01e-14 ***
+## age         -1.266e-02  1.596e-02  -0.794 0.428037    
+## dis         -1.668e+00  2.564e-01  -6.504 2.80e-10 ***
+## rad          2.856e-01  8.352e-02   3.420 0.000704 ***
+## tax         -1.257e-02  4.629e-03  -2.714 0.006979 ** 
+## ptratio     -8.114e-01  1.661e-01  -4.884 1.60e-06 ***
+## b            1.134e-02  3.246e-03   3.495 0.000536 ***
+## lstat       -4.627e-01  6.112e-02  -7.570 3.54e-13 ***
+## ---
+## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+## 
+## Residual standard error: 4.815 on 340 degrees of freedom
+## Multiple R-squared:  0.7512,	Adjusted R-squared:  0.7403 
+## F-statistic: 68.45 on 15 and 340 DF,  p-value: &lt; 2.2e-16
+```
+
+
+]
+
+.pull-right[
+
+**`caret` approach:**
+
+
+```r
+library(caret)
+
+m1.caret &lt;- train(cmedv ~ ., data = boston_train, method = "lm")
+
+summary(m1.caret)
+## 
+## Call:
+## lm(formula = .outcome ~ ., data = dat)
+## 
+## Residuals:
+##     Min      1Q  Median      3Q     Max 
+## -15.673  -2.736  -0.593   1.943  25.502 
+## 
+## Coefficients: (1 not defined because of singularities)
+##               Estimate Std. Error t value Pr(&gt;|t|)    
+## (Intercept) -3.079e+02  3.710e+02  -0.830 0.407125    
+## lon         -2.847e+00  4.027e+00  -0.707 0.480073    
+## lat          3.319e+00  4.647e+00   0.714 0.475549    
+## crim        -1.131e-01  5.042e-02  -2.242 0.025575 *  
+## zn           5.430e-02  1.687e-02   3.220 0.001407 ** 
+## indus       -1.992e-02  7.639e-02  -0.261 0.794483    
+## chas.0      -2.425e+00  1.061e+00  -2.285 0.022946 *  
+## chas.1              NA         NA      NA       NA    
+## nox         -1.646e+01  4.742e+00  -3.472 0.000584 ***
+## rm           4.128e+00  5.227e-01   7.896 4.01e-14 ***
+## age         -1.266e-02  1.596e-02  -0.794 0.428037    
+## dis         -1.668e+00  2.564e-01  -6.504 2.80e-10 ***
+## rad          2.856e-01  8.352e-02   3.420 0.000704 ***
+## tax         -1.257e-02  4.629e-03  -2.714 0.006979 ** 
+## ptratio     -8.114e-01  1.661e-01  -4.884 1.60e-06 ***
+## b            1.134e-02  3.246e-03   3.495 0.000536 ***
+## lstat       -4.627e-01  6.112e-02  -7.570 3.54e-13 ***
+## ---
+## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+## 
+## Residual standard error: 4.815 on 340 degrees of freedom
+## Multiple R-squared:  0.7512,	Adjusted R-squared:  0.7403 
+## F-statistic: 68.45 on 15 and 340 DF,  p-value: &lt; 2.2e-16
+```
+
+]
+]
+
+---
+
+## Model Specification
+
+* There are two primary ways we'll specify model formulation
+
+* Typically, the non-formula matrix approach is more efficient computationally
+
+.pull-left[
+
+**Formula Interface:**
+
+
+```r
+lm(y ~ x1 + x2, data = train)
+lm(y ~ ., data = train)
+lm(log(y) ~ ., data = train)
+```
+
+
+]
+
+.pull-right[
+
+**Non-formula ("matrix") Interface:**
+
+
+```r
+glmnet(x = train_x, y = train_y)
+```
+
+]
+
+
+&lt;br&gt;&lt;br&gt;
+
+.full-width[.content-box-blue[.bolder[.center[Not all machine learning functions have both interfaces. 🤬]]]]
+
+
+---
+class: center, middle, inverse
+
+background-image: url(Images/tuning-your-guitar.jpg)
+background-size: cover
+
+# Model Tuning
+
+---
+
+## Tuning Parameters
+
+* Hyperparameters control the level of model complexity.
+
+.pull-left[
+
+* Regularized regression
+   * `alpha` (mixing %)
+   * `lambda` (regularization)
+
+* MARS
+   * `nprune` (# terms)
+   * `degree` (product degree)
+
+* Neural Nets
+   * `size` (# hidden units) 
+   * `decay` (weight decay)
+   
+]
+
+.pull-right[
+
+* Discriminant Analysis
+   * `model` (type)
+   * `dimen` (discriminant fx)
+
+* SVMs
+   * `sigma` 
+   * `cost` 
+   * `weight` 
+
+* Trees
+   * `mtry` (randomly selected variables)
+   * `ntrees` (# trees)
+   * `max_depth` (tree depth)
+
+]
+
+---
+
+## Tuning Parameters
+
+* Hyperparameters control the level of model complexity.
+
+* This is good as it allows us to transform our model to better align with patterns within our data.
+
+&lt;br&gt;&lt;br&gt;
+
+&lt;img src="02-Fundamentals_files/figure-html/unnamed-chunk-11-1.svg" style="display: block; margin: auto auto auto 0;" /&gt;
+
+---
+
+## Tuning Parameters
+
+* Hyperparameters control the level of model complexity.
+
+* This is good as it allows us to transform our model to better align with patterns within our data.
+
+* However, it can be bad because we can overfit our model to training data, which will not generalize well.
+
+&lt;img src="02-Fundamentals_files/figure-html/unnamed-chunk-12-1.svg" style="display: block; margin: auto auto auto 0;" /&gt;
+
+---
+
+## Tuning Parameters
+
+* Hyperparameters control the level of model complexity.
+
+* This is good as it allows us to transform our model to better align with patterns within our data.
+
+* However, it can be bad because we can overfit our model to training data, which will not generalize well.
+
+&lt;center&gt;
+&lt;img src = "Images/bias_var.png" style="width:70%;height:70%;"&gt;
+&lt;/center&gt;
+
+
+---
+class: center, middle, inverse
+
+background-image: url(Images/resampling_icon.jpg)
+background-size: cover
+
+# Resampling
+
+---
+
+## Cross Validation for Generalization
+
+* Our goal is to not only find a model that performs well on training data but...
+
+* to find one that performs well on _future unseen data_.
+
+&lt;br&gt;
+
+&lt;img src="Images/cv.png" width="1908" style="display: block; margin: auto;" /&gt;
+
+---
+
+## Custom CV
+
+* Some packages/functions do not have built-in CV capabilities
+
+* `lm` does not have built-in CV capabilities but we can use `rsample`
+
+
+```r
+set.seed(123)
+*cv_split &lt;- vfold_cv(pdp::boston, v = 10, strata = "cmedv")
+
+cv_split
+## #  10-fold cross-validation using stratification 
+## # A tibble: 10 x 2
+##    splits       id    
+##    &lt;list&gt;       &lt;chr&gt; 
+##  1 &lt;S3: rsplit&gt; Fold01
+##  2 &lt;S3: rsplit&gt; Fold02
+##  3 &lt;S3: rsplit&gt; Fold03
+##  4 &lt;S3: rsplit&gt; Fold04
+##  5 &lt;S3: rsplit&gt; Fold05
+##  6 &lt;S3: rsplit&gt; Fold06
+##  7 &lt;S3: rsplit&gt; Fold07
+##  8 &lt;S3: rsplit&gt; Fold08
+##  9 &lt;S3: rsplit&gt; Fold09
+## 10 &lt;S3: rsplit&gt; Fold10
+```
+
+---
+
+## Custom CV
+
+* Some packages/functions do not have built-in CV capabilities
+
+* `lm` does not have built-in CV capabilities but we can use `rsample`
+
+
+```r
+cv_split &lt;- vfold_cv(boston_train, v = 10)
+
+# create empty vector to store error metric
+rmse &lt;- vector(mode = "numeric", length = nrow(cv_split))
+
+# iterate through each fold, model, predict, score
+for (i in 1:nrow(cv_split)) {
+  m &lt;- lm(cmedv ~ ., data = analysis(cv_split$splits[[i]]))
+  p &lt;- predict(m, assessment(cv_split$splits[[i]]))
+  rmse[i] &lt;- caret::RMSE(p, assessment(cv_split$splits[[i]])$cmedv)
+}
+
+mean(rmse)
+## [1] 4.953962
+```
+
+---
+
+## Built-in CV
+
+Many model functions, like `caret`, have built-in CV capabilities
+
+.scrollable[
+
+
+```r
+m2.caret &lt;- train(
+  cmedv ~ ., 
+  data = boston_train, 
+  method = "lm",
+* trControl = trainControl(method = "cv", number = 10)
+  )
+
+m2.caret
+## Linear Regression 
+## 
+## 356 samples
+##  16 predictor
+## 
+## No pre-processing
+## Resampling: Cross-Validated (10 fold) 
+## Summary of sample sizes: 320, 322, 320, 321, 320, 321, ... 
+## Resampling results:
+## 
+##   RMSE      Rsquared   MAE     
+##   4.884355  0.7279148  3.431138
+## 
+## Tuning parameter 'intercept' was held constant at a value of TRUE
+```
+]
+
+
+---
+class: center, middle, inverse
+
+background-image: url(Images/evaluation_icon.jpg)
+background-size: cover
+
+# Model Evaluation
+
+---
+
+## Performance Metrics
+
+.pull-left[
+
+**Regression:**
+
+* Mean Square Error (MSE)
+* Mean Absolute Error (MAE)
+* Mean Absolute Percent Error (MAPE)
+* Root Mean Squared Logarithmic Error (RMSLE)
+
+
+]
+
+.pull-right[
+
+**Classification:**
+
+* Classification Accuracy
+* Recall vs. Specificity
+* `\(F_1\)` Score
+* Log Loss
+
+]
+
+---
+
+## Performance Metrics
+
+
+.pull-left[
+
+**Regression:**
+
+* **Mean Square Error (MSE)**
+* Mean Absolute Error (MAE)
+* Mean Absolute Percent Error (MAPE)
+* Root Mean Squared Logarithmic Error (RMSLE)
+
+&lt;br&gt;&lt;br&gt;
+
+$$ MSE = \frac{1}{n} \sum^n_{i=1}(y_i - \hat y_i)^2 $$
+
+]
+
+.pull-right[
+
+**Classification:**
+
+* **Classification Accuracy**
+* Recall vs. Specificity
+* `\(F_1\)` Score
+* Log Loss
+
+
+&lt;img src="https://rasbt.github.io/mlxtend/user_guide/evaluate/confusion_matrix_files/confusion_matrix_1.png" style="display: block; margin: auto;" /&gt;
+
+
+]
+
+---
+
+class: center, middle, inverse
+
+background-image: url(http://amsterdammakerfestival.nl/wp-content/uploads/2016/08/the-challenge.png)
+
+
+---
+
+## Your Turn!
+
+Starting with the raw `AmesHousing::make_ames()` data:
+
+1. split your data into 70 (training) / 30 (testing)
+2. normalize the response variable
+3. standardize the features (don't one-hot encode as `lm` will automate the dummy encoding)
+4. apply a linear regression model with 10-fold cross validation
+5. what is your average CV RMSE?   
+
+---
+
+## Solution
+
+.scrollable[
+
+
+```r
+
+# 1. 70/30 split
+data_split &lt;- initial_split(AmesHousing::make_ames(), prop = .7, strata = "Sale_Price")
+ames_train &lt;- training(data_split)
+ames_test  &lt;- testing(data_split)
+
+# 2. normalize response variable
+lambda  &lt;- forecast::BoxCox.lambda(ames_train$Sale_Price)
+train_y &lt;- forecast::BoxCox(ames_train$Sale_Price, lambda)
+test_y  &lt;- forecast::BoxCox(ames_test$Sale_Price, lambda)
+
+# 3. standardize features
+features &lt;- setdiff(names(ames_train), "Sale_Price")
+pre_process &lt;- preProcess(
+  x = ames_train[, features],
+  method = c("YeoJohnson", "center", "scale", "zv")
+)
+train_x &lt;- predict(pre_process, ames_train[, features])
+test_x  &lt;- predict(pre_process, ames_test[, features])
+
+# 4. 10-fold CV linear regression
+lm.cv &lt;- train(
+  x =  train_x,
+  y = train_y,
+  method = "lm",
+  trControl = trainControl(method = "cv", number = 10)
+  )
+
+# 5. out-of-sample avg CV RMSE
+lm.cv
+## Linear Regression 
+## 
+## 2054 samples
+##   80 predictor
+## 
+## No pre-processing
+## Resampling: Cross-Validated (10 fold) 
+## Summary of sample sizes: 1849, 1849, 1849, 1848, 1847, 1847, ... 
+## Resampling results:
+## 
+##   RMSE       Rsquared   MAE       
+##   0.1662439  0.8563245  0.08603729
+## 
+## Tuning parameter 'intercept' was held constant at a value of TRUE
+```
+
+]
+
+---
+
+## So, can we do better?
+
+&lt;img src="Images/dunno.png" width="531" style="display: block; margin: auto;" /&gt;
+
+
+---
+
+## Peeking inside the black box
+
+.full-width[.content-box-yellow[.center[What insights do we generally want to extract from our ML models?]]]
+
+--
+
+* Which variables are important? ([`vip`](https://github.com/koalaverse/vip))
+
+--
+
+* How does each feature functionallr relate to the outcome of interest? ([`pdp`](https://github.com/bgreenwell/pdp), [`plotmo`](https://CRAN.R-project.org/package=plotmo), [`ICEbox`](https://CRAN.R-project.org/package=ICEbox))
+
+--
+
+* How do the features interact? ([`pdp`](https://github.com/bgreenwell/pdp), [`plotmo`](https://CRAN.R-project.org/package=plotmo), [`ICEbox`](https://CRAN.R-project.org/package=ICEbox))
+
+--
+
+&lt;img src="02-Fundamentals_files/figure-html/peeking-demo-1.svg" style="display: block; margin: auto;" /&gt;
+
+
+---
+
+## Variable importance plots
+
+.pull-left[
+
+* Some ML algorithms provide variable importance measures, but not all R implementations provide variable importance plots (VIPs)
+
+* Enter...[`vip`](https://github.com/AFIT-R/vip) 
+
+    - Provides a consistent framework for extracting and plotting variable importance scores from many types of ML models
+
+    - `vi()` always returns a [tibble](https://cran.r-project.org/web/packages/tibble/vignettes/tibble.html)
+
+    - `vip()` uses [`ggplot2`](http://ggplot2.org/)
+
+]
+
+.pull-right[
+
+
+```r
+# Not yet on CRAN (experimental)
+devtools::install_github("koalaverse/vip")
+```
+
+&lt;img src="Images/vip-logo.svg" width="80%" style="display: block; margin: auto;" /&gt;
+]
+
+
+---
+
+## Variable importance plots
+
+
+```r
+# Load required packages
+library(ranger)
+library(vip)
+
+# Load the Ames housing data
+ames &lt;- AmesHousing::make_ames()
+
+# Fit a random forest
+set.seed(2024)
+rf &lt;- ranger(Sale_Price ~ ., data = ames, importance = "impurity")
+
+# Variable importance plot
+*vip(rf, num_features = 25)
+```
+
+.full-width[.content-box-blue[.bolder[.center[One function to rule them all!]]]]
+
+---
+
+## Variable importance plots
+
+&lt;img src="02-Fundamentals_files/figure-html/vip-output-1.svg" width="60%" style="display: block; margin: auto;" /&gt;
+
+
+---
+
+## Partial dependence plots
+
+.scrollable[
+
+* [Partial dependence plots (PDPs)](https://journal.r-project.org/archive/2017/RJ-2017-016/index.html) help visualize the relationship between a subset of the features (typically 1-3) and the response
+
+* Let `\(x_1\)` be the predictor variable of interest with unique values `\(\left\{x_{11}, x_{12}, \dots, x_{1k}\right\}\)`
+
+* The partial dependence of the response on `\(x_1\)` can be constructed as follows:
+
+    1. For `\(i \in \left\{1, 2, \dots, k\right\}\)`:
+    
+        a. Copy the training data and replace the original values of `\(x_1\)` with the constant `\(x_{1i}\)`
+    
+        b. Compute the vector of predicted values from the modified copy of the training data
+        
+        c. Compute the average prediction to obtain `\(\bar{f}_1\left(x_{1i}\right)\)`
+
+    2. Plot the pairs `\(\left\{x_{1i}, \bar{f}_1\left(x_{1i}\right)\right\}\)` for `\(i = 1, 2, \dotsc, k\)`
+
+]
+
+
+---
+
+## Partial dependence plots
+
+.pull-left[
+
+* Very few ML packages in R provide support for constructing PDPs
+
+* Enter...[`pdp`](https://journal.r-project.org/archive/2017/RJ-2017-016/index.html)
+
+    - Provides a consistent way of constructing PDPs (and more) from many types of ML models (not just RFs)
+
+    - Allows for multivariate displays (i.e., interactions) and so much more!!
+    
+    - Includes options for **parallel processing** and **progress bars** 😎
+
+]
+
+.pull-right[
+
+
+```r
+# Install from CRAN
+install.packages("pdp")
+
+# Install from GitHub
+devtools::install_github("bgreenwell/pdp")
+```
+
+&lt;img src="Images/pdp-logo.png" width="65%" style="display: block; margin: auto;" /&gt;
+
+]
+
+
+---
+
+## A handy flow chart
+
+&lt;img src="Images/flow-chart.png" width="100%" style="display: block; margin: auto;" /&gt;
+
+
+---
+class: inverse, middle, center
+
+# Questions?
+    </textarea>
+<script src="libs/remark-latest.min.js"></script>
+<script>var slideshow = remark.create({
+"highlightStyle": "github",
+"highlightLines": true,
+"countIncrementalSlides": false
+});
+if (window.HTMLWidgets) slideshow.on('afterShowSlide', function (slide) {
+  window.dispatchEvent(new Event('resize'));
+});
+(function() {
+  var d = document, s = d.createElement("style"), r = d.querySelector(".remark-slide-scaler");
+  if (!r) return;
+  s.type = "text/css"; s.innerHTML = "@page {size: " + r.style.width + " " + r.style.height +"; }";
+  d.head.appendChild(s);
+})();</script>
+
+<script type="text/x-mathjax-config">
+MathJax.Hub.Config({
+  tex2jax: {
+    skipTags: ['script', 'noscript', 'style', 'textarea', 'pre']
+  }
+});
+</script>
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+(function () {
+  var script = document.createElement('script');
+  script.type = 'text/javascript';
+  script.src  = 'https://cdn.bootcss.com/mathjax/2.7.1/MathJax.js?config=TeX-MML-AM_CHTML';
+  if (location.protocol !== 'file:' && /^https?:/.test(script.src))
+    script.src  = script.src.replace(/^https?:/, '');
+  document.getElementsByTagName('head')[0].appendChild(script);
+})();
+</script>
+  </body>
+</html>

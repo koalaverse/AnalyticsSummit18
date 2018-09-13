@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Machine Learning with R</title>
+    <meta charset="utf-8">
+    <meta name="author" content="Bradley C. Boehmke  and  Brandon M. Greenwell" />
+    <link href="libs/remark-css/default.css" rel="stylesheet" />
+    <link href="libs/remark-css/hygge.css" rel="stylesheet" />
+    <link rel="stylesheet" href="scrollable.css" type="text/css" />
+  </head>
+  <body>
+    <textarea id="source">
+class: center, middle, inverse, title-slide
+
+# Machine Learning with R
+### Bradley C. Boehmke </br> and </br> Brandon M. Greenwell
+### 2018/05/12
+
+---
+
+
+
+
+class: center, middle, inverse
+
+background-image: url(https://i.pinimg.com/originals/e5/26/c1/e526c1b66d356fe88886c1803be31255.png)
+
+# Introductions
+
+---
+
+## Who Are These Guys?
+
+&lt;br&gt;
+&lt;img src="Images/just_two_guys.png" width="50%" style="display: block; margin: auto;" /&gt;
+
+---
+
+## Who Are These Guys?
+
+.pull-left[
+
+.large[**Brad Boehmke**] &lt;img src = "Images/brad_bitmoji.png" style="width:20%;height:20%;"&gt;
+
+* 84.51°
+
+* UC, WFU, AFIT
+
+* Dayton, OH
+
+* Married with 2 little girls
+
+* [bradleyboehmke.github.io](http://bradleyboehmke.github.io/)
+
+]
+
+--
+
+.pull-right[
+
+.large[**Brandon Greenwell:**] &lt;img src = "Images/brandon_bitmoji.png" style="width:20%;height:20%;"&gt;
+
+* Statistician turned data scientist
+
+* Also at 84.51° (just moved to Cinci from Dayton)
+
+* WSU, UC
+
+* [My R packages](https://github.com/bgreenwell)
+  
+&lt;img src="Images/food.jpg" width="40%" style="display: block; margin: auto;" /&gt;
+
+]
+
+
+---
+
+class: center, middle, inverse
+
+background-image: url(Images/intentions.jpg)
+background-position: center
+background-size: contain
+
+# Intent of the Course
+
+
+---
+
+## Agenda
+
+.pull-left[
+
+.large[__Day 1__:]
+
+* ML Fundamentals
+
+* Regularization
+
+* Multivariate Adaptive Regression Splines (MARS)
+
+* Feed-forward Neural Networks
+
+* Kaggle!
+
+]
+
+.pull-right[
+
+.large[__Day 2__:]
+
+* Naive Bayes Classifier
+
+* Support Vector Machines (SVMs)
+
+* Random Forests 🌲
+
+* Gradient Boosting Machines 🌲
+
+* Kaggle!
+
+]
+
+&lt;br&gt;&lt;br&gt;
+&lt;center&gt;
+&lt;bold&gt;
+&lt;font color="red"; size="5"&gt;
+Objective: expose you to a wide-range of techniques and packages that can be used for supervised regression and classification problems.
+&lt;/font&gt;
+&lt;/bold&gt;
+&lt;/center&gt;
+
+---
+
+class: center, middle, inverse
+
+background-image: url(Images/prerequisites.png)
+background-position: center
+background-size: contain
+
+
+---
+
+## Basic Assumptions
+
+* Intermediate familiarity with R is required ✅
+
+* This is not your first analytics course ✅
+
+* R installed ( `\(\geq\)` v3.4) ✅
+
+* RStudio installed ( `\(\geq\)` v1.1.4) ✅
+
+* You have a Kaggle acount ✅
+
+&lt;br&gt;&lt;br&gt;&lt;br&gt;&lt;br&gt;
+&lt;center&gt;
+&lt;bold&gt;
+&lt;font color="red"; size="6"&gt;
+Does everyone have the right versions and necessary packages installed?
+&lt;/font&gt;
+&lt;/bold&gt;
+&lt;/center&gt;
+
+---
+
+## Packages Used
+
+.scrollable[
+
+
+```r
+list.of.packages &lt;- c(
+  'alr3',          # for Swiss banknote data
+  'AmesHousing',   # for Ames housing data
+  'caret',         # for classification and regression training
+  'devtools',      # for install_github() function
+  'dplyr',         # for (mostly) pain free data wrangling
+  'earth',         # for multivariate adaptive regression splines
+  'forecast',      # for normalizing 
+  'gbm',           # for generalized boosted models
+  'ggplot2',       # for awesome plotting
+  'ggridges',      # for ridgeline plots
+  'glmnet',        # for elastic net (e.g., the lasso and ridge regression)
+  'investr',       # for plotFit() function
+  'keras',         # for deep learning
+  'kernlab',       # for fitting support vector machines
+  'klaR',          # for naive Bayes
+  'magrittr',      # for using the forward pipe operator (i.e., %&gt;%)
+  'MASS',          # for LDA/QDA functions
+  'mda',           # for multivariate adaptive regression splines
+  'pdp',           # for partial dependence plots and ICE/c-ICE curvess
+  'plotly',        # interactive plots
+  'randomForest',  # for random forest 
+  'ranger',        # for fast and efficient random forest
+  'RColorBrewer',  # for better color palettes
+  'rpart',         # for binary recursive partitioning (i.e., decision trees)
+  'rpart.plot',    # for plotting decision tree diagrams
+  'rsample',       # for data splitting and some data sets
+  'svmpath',       # for fitting the entire SVM regularization path 
+  'tidyr',         # for easily tidying data
+  'xgboost',       # for eXtreme Gradient Boosting
+  'yardstick'      # for various ML metrics
+)
+
+# Run the following lines of code to install the packages you do not have
+new.packages &lt;- list.of.packages[
+  !(list.of.packages %in% installed.packages()[, "Package"])
+]
+
+if(length(new.packages)) {
+  install.packages(new.packages)
+}
+
+# Install the vip package (for variable importance plots) from our GitHub repo
+devtools::install_github("koalaverse/vip")
+```
+]
+
+---
+
+## Data Used
+
+Although we will demonstrate with several data sets*, our emphasis will be on the following:
+
+.pull-left[
+
+.large[__Regression Problems:__]
+
+
+```r
+# smaller housing data (target = cmedv)
+dim(pdp::boston)
+## [1] 506  16
+
+# larger housing data (target = Sale_Price)
+dim(AmesHousing::make_ames())
+## [1] 2930   81
+```
+
+]
+
+.pull-right[
+
+.large[__Classification Problems:__]
+
+
+```r
+# employee attrition data (target = Attrition)
+dim(rsample::attrition)
+## [1] 1470   31
+```
+
+]
+
+*The random forest and boosting module will make use of a few additional data sets 😱
+
+
+---
+
+
+class: center, middle, inverse
+
+background-image: url(Images/yourturn.png)
+background-position: center
+background-size: contain
+
+# Your Turn!
+
+---
+
+## Meet your neighbors
+
+.pull-left[
+
+.large[
+
+- Name
+
+- Where you're from
+
+- Experience with R
+
+]
+]
+
+.pull-right[
+
+&lt;img src="Images/be_my_friend.png" width="80%" style="display: block; margin: auto;" /&gt;
+
+]
+
+---
+
+## Download remaining material
+
+
+&lt;br&gt;&lt;br&gt;&lt;br&gt;&lt;br&gt;
+
+.center[.red[.huge[http://bit.ly/MLwR]]]
+
+---
+
+class: center, middle, inverse
+
+background-image: url(http://i.imgur.com/9umnm.gif)
+background-position: center
+background-size: contain
+
+# Excited To Start?
+    </textarea>
+<script src="libs/remark-latest.min.js"></script>
+<script>var slideshow = remark.create({
+"highlightStyle": "github",
+"highlightLines": true,
+"countIncrementalSlides": false
+});
+if (window.HTMLWidgets) slideshow.on('afterShowSlide', function (slide) {
+  window.dispatchEvent(new Event('resize'));
+});
+(function() {
+  var d = document, s = d.createElement("style"), r = d.querySelector(".remark-slide-scaler");
+  if (!r) return;
+  s.type = "text/css"; s.innerHTML = "@page {size: " + r.style.width + " " + r.style.height +"; }";
+  d.head.appendChild(s);
+})();</script>
+
+<script type="text/x-mathjax-config">
+MathJax.Hub.Config({
+  tex2jax: {
+    skipTags: ['script', 'noscript', 'style', 'textarea', 'pre']
+  }
+});
+</script>
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+(function () {
+  var script = document.createElement('script');
+  script.type = 'text/javascript';
+  script.src  = 'https://cdn.bootcss.com/mathjax/2.7.1/MathJax.js?config=TeX-MML-AM_CHTML';
+  if (location.protocol !== 'file:' && /^https?:/.test(script.src))
+    script.src  = script.src.replace(/^https?:/, '');
+  document.getElementsByTagName('head')[0].appendChild(script);
+})();
+</script>
+  </body>
+</html>
