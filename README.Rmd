@@ -18,6 +18,8 @@ Material for our Machine Learning with R short course held at the [2018 Analytic
 
 ## Topics
 
+* [Introduction](https://koalaverse.github.io/AnalyticsSummit18/01-introduction.html#1)
+
 * [Fundamentals of machine learning](https://koalaverse.github.io/AnalyticsSummit18/02-Fundamentals.html#1)
 
 * [Regularized regression](https://koalaverse.github.io/AnalyticsSummit18/03-Regularization.html#1)

@@ -15,6 +15,8 @@ Authors
 Topics
 ------
 
+-   [Introduction](https://koalaverse.github.io/AnalyticsSummit18/01-introduction.html#1)
+
 -   [Fundamentals of machine
     learning](https://koalaverse.github.io/AnalyticsSummit18/02-Fundamentals.html#1)
 
